@@ -15,11 +15,15 @@ export { ContainerProxy } from "@cloudflare/containers";
 export class AppContainer extends Container<Env> {
   defaultPort = 8080;
   sleepAfter = "10m";
-  // NOTE: the installed @cloudflare/containers (0.2.x) exposes `outboundByHost`
-  // as a static accessor on Container, not an instance field as the brief's
-  // snippet shows — so this is declared `static` to match that API.
-  static outboundByHost = { "storage.internal": (req: Request, env: Env) => handleStorage(req, env) };
 }
+// Register the storage.internal outbound handler by ASSIGNING after the class
+// so the assignment invokes Container's inherited static `outboundByHost` SETTER
+// (which registers the handler in the package's outbound registry). Declaring
+// `static outboundByHost = {...}` in the class body instead creates an own data
+// property that SHADOWS the setter — the handler is never registered, so the
+// container's http://storage.internal calls fall through to the enableInternet
+// fallback and fail with HTTP 530 (the live "no D1 writes" bug).
+AppContainer.outboundByHost = { "storage.internal": (req: Request, env: Env) => handleStorage(req, env) };
 
 type Deps = {
   jwks: (env: Env) => ReturnType<typeof createRemoteJWKSet>;

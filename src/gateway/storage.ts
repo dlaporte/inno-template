@@ -7,7 +7,6 @@ export async function handleStorage(request: Request, env: S): Promise<Response>
     const url = new URL(request.url);
     const path = url.pathname;
     const m = request.method;
-    console.log("[storage]", m, path, "DB=", typeof env?.DB, "FILES=", typeof env?.FILES);
 
     if (path === "/_storage/sql/query" && m === "POST") {
       const body = await readJson<{ sql: string; params?: unknown[] }>(request);
@@ -43,7 +42,6 @@ export async function handleStorage(request: Request, env: S): Promise<Response>
     }
     return json({ error: "unknown_storage_route" }, 404);
   } catch (e) {
-    console.log("[storage] ERROR", String(e).slice(0, 300));
     return json({ error: "storage_error", detail: String(e).slice(0, 200) }, 500);
   }
 }
