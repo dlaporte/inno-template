@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Innovation Platform — Hello</title></head>
+<body>
+  <h1>Hello {{ user }}</h1>
+  {% if storage %}
+  <p>Your visits: {{ mine }}</p>
+  <p>Total visits: {{ total }}</p>
+  {% else %}
+  <p>storage unavailable</p>
+  {% endif %}
+</body>
+</html>
