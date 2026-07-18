@@ -1,9 +1,9 @@
-import os
+import html
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 try:
-    from storage import Storage, current_user  # delivered by Task 6
+    from storage import Storage  # delivered by Task 6
 except Exception:  # pragma: no cover - local build sanity before Task 6
     Storage = None
 
@@ -16,6 +16,7 @@ def healthz():
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     user = request.headers.get("x-forwarded-user", "unknown")
+    user = html.escape(user)
     if Storage is None:
         return f"<h1>Hello {user}</h1><p>storage unavailable</p>"
     db = Storage()
