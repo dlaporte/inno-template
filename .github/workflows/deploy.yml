@@ -1,0 +1,22 @@
+name: deploy
+
+# Thin caller workflow. This file is NOT trusted by the platform — an app
+# author can edit or delete it. All the platform's security gates and the
+# deploy step itself live in the reusable workflow this invokes
+# (`dlaporte/inno-platform`'s `platform-ci.yml`), which an app repo cannot
+# edit. The broker verifies (server-side, via the GitHub OIDC token's
+# job_workflow_ref claim) that a deploy-token request actually came from
+# that exact reusable workflow running off `main` — a repo that replaces
+# this caller with something else gets refused a deploy token.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  platform:
+    uses: dlaporte/inno-platform/.github/workflows/platform-ci.yml@refs/heads/main
+    secrets: inherit
