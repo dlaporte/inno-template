@@ -1,4 +1,7 @@
 FROM python:3.12-slim
+# Patch base-image OS packages so the container image passes the platform's
+# Trivy HIGH/CRITICAL gate (Debian slim can ship with fixable CVEs).
+RUN apt-get update && apt-get -y upgrade && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
