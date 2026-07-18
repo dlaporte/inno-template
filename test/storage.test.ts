@@ -29,3 +29,21 @@ it("400s malformed sql body, 404s unknown route", async () => {
   expect((await S("/_storage/sql/query", { method: "POST", body: "{bad" })).status).toBe(400);
   expect((await S("/_storage/nope")).status).toBe(404);
 });
+
+it("returns 500 on bad SQL", async () => {
+  const r = await S("/_storage/sql/query", { method: "POST", body: JSON.stringify({ sql: "SELECT * FROM does_not_exist" }) });
+  expect(r.status).toBe(500);
+  expect((await r.json() as any).error).toBe("storage_error");
+});
+
+it("returns 500 on malformed key encoding", async () => {
+  const r = await S("/_storage/files/%zz");
+  expect(r.status).toBe(500);
+  expect((await r.json() as any).error).toBe("storage_error");
+});
+
+it("returns 413 on oversized PUT", async () => {
+  const r = await S("/_storage/files/big.bin", { method: "PUT", body: "x", headers: { "content-length": "99999999" } });
+  expect(r.status).toBe(413);
+  expect((await r.json() as any).error).toBe("too_large");
+});
