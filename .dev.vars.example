@@ -1,0 +1,9 @@
+# Local development environment variables
+# Copy this file to .dev.vars and customize for your setup
+
+ENVIRONMENT=dev
+
+# INNO_STORAGE_BASE: URL to the local storage endpoint (gateway's storage.internal handler)
+# In local dev with `npm run dev`, this defaults to http://localhost:8787
+# Leave unset to use the default, or override if running Wrangler on a different port
+# INNO_STORAGE_BASE=http://localhost:8787
