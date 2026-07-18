@@ -18,5 +18,5 @@ permissions:
 
 jobs:
   platform:
-    uses: dlaporte/inno-platform/.github/workflows/platform-ci.yml@refs/heads/main
+    uses: dlaporte/inno-platform/.github/workflows/platform-ci.yml@main
     secrets: inherit
