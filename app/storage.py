@@ -1,4 +1,5 @@
 import os, httpx
+from urllib.parse import quote
 
 class Storage:
     def __init__(self, base: str | None = None):
@@ -18,13 +19,21 @@ class Storage:
 
     async def put_file(self, key: str, data: bytes):
         async with httpx.AsyncClient() as c:
-            r = await c.put(f"{self.base}/_storage/files/{key}", content=data); r.raise_for_status(); return r.json()
+            r = await c.put(f"{self.base}/_storage/files/{quote(key, safe='')}", content=data); r.raise_for_status(); return r.json()
 
     async def get_file(self, key: str) -> bytes | None:
         async with httpx.AsyncClient() as c:
-            r = await c.get(f"{self.base}/_storage/files/{key}")
+            r = await c.get(f"{self.base}/_storage/files/{quote(key, safe='')}")
             if r.status_code == 404: return None
             r.raise_for_status(); return r.content
+
+    async def list_files(self) -> list:
+        async with httpx.AsyncClient() as c:
+            r = await c.get(f"{self.base}/_storage/files"); r.raise_for_status(); return r.json()["keys"]
+
+    async def delete_file(self, key: str):
+        async with httpx.AsyncClient() as c:
+            r = await c.delete(f"{self.base}/_storage/files/{quote(key, safe='')}"); r.raise_for_status(); return r.json()
 
 def current_user(request) -> dict:
     h = request.headers

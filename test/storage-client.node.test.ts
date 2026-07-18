@@ -10,3 +10,9 @@ it("query posts to the sql/query endpoint and returns rows", async () => {
   expect(rows).toEqual([{ v: 1 }]);
   expect(calls[0].url).toBe("http://storage.internal/_storage/sql/query");
 });
+
+it("listFiles throws on a non-ok response", async () => {
+  const fetcher = async () => new Response("", { status: 500 });
+  const s = new Storage({ base: "http://storage.internal", fetcher });
+  await expect(s.listFiles()).rejects.toThrow("storage_error:500");
+});
