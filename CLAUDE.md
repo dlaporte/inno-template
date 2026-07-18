@@ -21,10 +21,10 @@ The gateway has already verified the user. The container receives authenticated 
 - `X-Forwarded-User`: User's email (e.g., `alice@example.com`)
 - `X-Forwarded-Groups`: Comma-separated group list (e.g., `inno-app-name-users,other-group`)
 
-Extract identity in your routes using the `current_user(request)` helper from `app/storage.py`:
+Extract identity in your routes using the `current_user(request)` helper from `storage.py`:
 
 ```python
-from app.storage import current_user
+from storage import current_user
 from fastapi import Request
 
 @app.get("/me")
@@ -44,7 +44,7 @@ In local dev (ENVIRONMENT=dev), the gateway accepts mocked identity via request 
 The container disk is ephemeral — writes will be lost when the container restarts. Use the `Storage` client to persist data:
 
 ```python
-from app.storage import Storage
+from storage import Storage
 
 storage = Storage()
 
@@ -59,7 +59,7 @@ await storage.put_file("profile/alice.json", b'{"name": "Alice"}')
 content = await storage.get_file("profile/alice.json")
 ```
 
-The storage client communicates with the platform's shared storage via the gateway. In local dev, set `INNO_STORAGE_BASE` to point to your local Wrangler dev gateway (default: `http://localhost:8787`).
+The storage client communicates with the platform's shared storage via the gateway. `Storage()` defaults its base URL to `http://storage.internal`, which the gateway intercepts (via the container's outbound handler) and routes to the shared R2/D1 backends. **Leave `INNO_STORAGE_BASE` unset in normal use** — both locally (`npm run dev` / `./scripts/dev.sh`) and in production, the default `http://storage.internal` is correct. Only override `INNO_STORAGE_BASE` if you run the app process *outside* the container/gateway (an unusual setup). Do not point it at the gateway's public port — that proxies `/_storage` back to the container and loops.
 
 ## Container contract
 
@@ -81,5 +81,6 @@ Plan 3's CI gate (`config-integrity`) enforces these constraints on the template
 3. **No privileged Dockerfile** — The Dockerfile must run as non-root; `USER` must be set before `CMD`.
 4. **No manual edits to wrangler resource limits** — The platform manages R2 buckets, D1 databases, and Durable Object limits via orchestration; hand-edits to `wrangler.jsonc` for these are rejected.
 5. **No edits to the gateway** — The gateway (`src/gateway/`) is templated by the platform. User apps must not modify it (except for reference/learning in local dev).
+6. **`ENVIRONMENT` must stay `"production"`** — The deployed app must keep `vars.ENVIRONMENT: "production"` in `wrangler.jsonc`. Setting it to `"dev"` enables mock-identity mode (the gateway trusts `X-Mock-User`/`X-Mock-Groups` headers and skips Access JWT verification) — an authentication bypass. CI rejects any deployed app whose `ENVIRONMENT` is not `production`. The `"dev"` value is only for local Wrangler dev.
 
 Respect these constraints to ensure your app can be deployed and operated safely.
