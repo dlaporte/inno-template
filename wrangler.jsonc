@@ -1,0 +1,14 @@
+{
+  "name": "inno-app-replace",           // orchestrator/deploy sets to inno-app-{name}
+  "main": "src/gateway/index.ts",
+  "compatibility_date": "2026-03-10",
+  "containers": [
+    { "class_name": "AppContainer", "image": "./Dockerfile", "max_instances": 2, "instance_type": "basic" }
+  ],
+  "durable_objects": { "bindings": [{ "name": "APP", "class_name": "AppContainer" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AppContainer"] }],
+  "d1_databases": [{ "binding": "DB", "database_name": "inno-replace-db", "database_id": "REPLACE" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "inno-replace-data" }],
+  "vars": { "ACCESS_TEAM_DOMAIN": "davidlaporte.cloudflareaccess.com", "ACCESS_AUD": "REPLACE", "ENVIRONMENT": "production" },
+  "dev": { "vars": { "ENVIRONMENT": "dev" } }
+}
