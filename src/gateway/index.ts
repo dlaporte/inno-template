@@ -6,6 +6,12 @@ import { verifyAccessJwt, ACCESS_JWT_HEADER, type AccessIdentity } from "./acces
 import { sanitizeAndInject } from "./identity";
 import { handleStorage } from "./storage";
 
+// The @cloudflare/containers runtime routes container calls through an internal
+// `ContainerProxy` Durable Object that it looks up via `ctx.exports.ContainerProxy`.
+// It only lands on `ctx.exports` if the Worker entrypoint re-exports it — without
+// this, container startup fails with "ctx.exports.ContainerProxy is undefined".
+export { ContainerProxy } from "@cloudflare/containers";
+
 export class AppContainer extends Container<Env> {
   defaultPort = 8080;
   sleepAfter = "10m";
