@@ -14,7 +14,17 @@ export { ContainerProxy } from "@cloudflare/containers";
 
 export class AppContainer extends Container<Env> {
   defaultPort = 8080;
+  // Scale-to-zero timeout. The platform injects SLEEP_AFTER at deploy time
+  // (`wrangler deploy --var SLEEP_AFTER:...` in platform-ci, sourced from the
+  // config store's container.sleep_after — app-overridable); the grammar guard
+  // mirrors the platform's server-side validation so a malformed var can never
+  // wedge container startup.
   sleepAfter = "10m";
+  constructor(...args: ConstructorParameters<typeof Container<Env>>) {
+    super(...args);
+    const env = args[1] as Env;
+    if (env.SLEEP_AFTER && /^[0-9]{1,4}(s|m|h)$/.test(env.SLEEP_AFTER)) this.sleepAfter = env.SLEEP_AFTER;
+  }
 }
 // Register the storage.internal outbound handler by ASSIGNING after the class
 // so the assignment invokes Container's inherited static `outboundByHost` SETTER
