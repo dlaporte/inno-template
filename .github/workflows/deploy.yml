@@ -18,5 +18,10 @@ permissions:
 
 jobs:
   platform:
+    # Skip on the template repo itself (is_template=true): the template is not
+    # a deployable app — it has no PLATFORM_READ_PAT secret and no registry
+    # entry, so running CI there can only fail. Repos GENERATED from the
+    # template are not template repos and run normally.
+    if: ${{ !github.event.repository.is_template }}
     uses: dlaporte/inno-platform/.github/workflows/platform-ci.yml@main
     secrets: inherit

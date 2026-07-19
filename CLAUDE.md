@@ -71,7 +71,7 @@ The storage client communicates with the platform's shared storage via the gatew
 The container must adhere to these requirements:
 
 1. **Listen on port 8080** — The gateway forwards all traffic to this port.
-2. **Serve `/healthz` endpoint** — Return HTTP 200 if healthy. CI and production use this to monitor the container.
+2. **Serve `/healthz` endpoint** — Return HTTP 200 if healthy. The production runtime uses this to monitor the container (CI does not probe it).
 3. **Run as non-root** — The Dockerfile must create a non-root user and switch to it before running your app. The reference Dockerfile uses `useradd -m appuser && USER appuser`.
 4. **Graceful shutdown** — The container will receive SIGTERM; handle it cleanly.
 
