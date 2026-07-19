@@ -24,14 +24,19 @@ The gateway has already verified the user. The container receives authenticated 
 Extract identity in your routes using the `current_user(request)` helper from `storage.py`:
 
 ```python
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from storage import current_user
-from fastapi import Request
 
-@app.get("/me")
-async def get_current_user(request: Request):
+async def me(request: Request) -> JSONResponse:
     user = current_user(request)  # {"email": "alice@example.com", "groups": [...]}
-    return user
+    return JSONResponse(user)
+
+# then add to your routes list: Route("/me", me)
 ```
+
+(The stack is **Starlette — not FastAPI**. FastAPI is deliberately banned: it
+pins a vulnerable starlette 0.46 line; the platform requires `starlette>=1.3.1`.)
 
 In local dev (ENVIRONMENT=dev), the gateway accepts mocked identity via request headers:
 - Pass `-H 'X-Mock-User: alice@example.com'` to set the user.

@@ -37,17 +37,22 @@ See `CLAUDE.md` for details on identity, storage, and the container contract.
 
 ## Deploying
 
-Push to the main branch of your repository. The platform's orchestrator will:
-1. Build and push your container image.
-2. Deploy the gateway and container as a Durable Object.
-3. Wire up storage (R2 and D1) and health checks.
+Push to the main branch of your repository. CI (the platform's reusable
+workflow) then:
+1. Runs the security gates (config-integrity, secrets, SAST, deps, container).
+2. On all-green, exchanges a GitHub OIDC token with the platform's deploy
+   broker for a short-lived Cloudflare token and runs `wrangler deploy`
+   (gateway Worker + container).
+3. The broker attaches your `inno-{app}` domain and marks the app live.
 
-See the platform docs for details on secrets management, scaling, and monitoring.
+Your D1/R2 storage was provisioned at `create_app` time and is wired via the
+gateway's storage endpoint. (`/healthz` is a runtime contract the gateway
+relies on — keep it working — but CI does not probe it.)
 
 ## What's in This Template
 
 - `src/gateway/` — Cloudflare Workers gateway (do not edit).
-- `app/` — Your Python application (FastAPI reference implementation).
+- `app/` — Your Python application (Starlette reference implementation — FastAPI is not permitted; see CLAUDE.md).
 - `Dockerfile` — Container image definition.
 - `wrangler.jsonc` — Cloudflare Workers and container config.
 - `test/` — Test suite for gateway and app contracts.
