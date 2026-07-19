@@ -16,6 +16,8 @@ permissions:
   id-token: write
   contents: read
 
+# Adapting this platform to your own accounts? Re-point the `uses:` ref below
+# at YOUR fork of inno-platform (OPERATIONS §4.6 step 6).
 jobs:
   platform:
     # Skip on the template repo itself (is_template=true): the template is not

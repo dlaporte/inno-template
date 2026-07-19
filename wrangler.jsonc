@@ -9,6 +9,10 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AppContainer"] }],
   "d1_databases": [{ "binding": "DB", "database_name": "inno-replace-db", "database_id": "REPLACE" }],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "inno-replace-data" }],
+  // ACCESS_TEAM_DOMAIN is a STATIC deployment constant, not templated per app:
+  // the gateway verifies every Access JWT's issuer against it. When adapting
+  // this platform to your own accounts, set it to your <team>.cloudflareaccess.com
+  // (OPERATIONS §4.6 step 6) — left stale, apps deploy but every request 401s.
   "vars": { "ACCESS_TEAM_DOMAIN": "davidlaporte.cloudflareaccess.com", "ACCESS_AUD": "REPLACE", "ENVIRONMENT": "production" },
   "dev": { "vars": { "ENVIRONMENT": "dev" } }
 }
