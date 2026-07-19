@@ -3,45 +3,23 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 
-# Delivered by the storage client lib; imported behind a guard so a local
-# `docker build` sanity check works even before storage.py is present.
-try:
-    from storage import Storage
-except Exception:  # pragma: no cover
-    Storage = None
-
-# Render HTML through Jinja2, which autoescapes interpolated values by default,
-# so the identity header (x-forwarded-user) can't inject markup. Never build
-# HTML with f-strings/format() — render through a template instead.
+# Render HTML through Jinja2, which autoescapes interpolated values by default.
+# Never build HTML with f-strings/format() — render through a template instead.
 templates = Jinja2Templates(directory="templates")
 
 
 async def healthz(request):
+    # Container contract: return 200 when healthy. Required by the runtime.
     return JSONResponse({"status": "ok"})
 
 
 async def home(request):
-    # Identity is injected by the gateway (verified Okta session); the app
-    # never implements auth. See CLAUDE.md.
-    user = request.headers.get("x-forwarded-user", "unknown")
-    if Storage is None:
-        return templates.TemplateResponse(
-            request, "index.html", {"user": user, "storage": False}
-        )
-    db = Storage()
-    await db.execute("CREATE TABLE IF NOT EXISTS visits (email TEXT PRIMARY KEY, n INTEGER)")
-    await db.execute(
-        "INSERT INTO visits (email, n) VALUES (?, 1) "
-        "ON CONFLICT(email) DO UPDATE SET n = n + 1",
-        [user],
-    )
-    mine = await db.query("SELECT n FROM visits WHERE email = ?", [user])
-    total = await db.query("SELECT COALESCE(SUM(n),0) AS t FROM visits")
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {"user": user, "storage": True, "mine": mine[0]["n"], "total": total[0]["t"]},
-    )
+    # Placeholder landing page. This template ships as a bare scaffold with no
+    # application logic — build your app here. Identity is injected by the
+    # gateway as X-Forwarded-User (see CLAUDE.md), and persistence uses the
+    # Storage client in storage.py; both are documented in CLAUDE.md with
+    # copy-paste examples. Add your routes below and extend index.html.
+    return templates.TemplateResponse(request, "index.html", {})
 
 
 app = Starlette(routes=[Route("/healthz", healthz), Route("/", home)])
