@@ -1,4 +1,5 @@
 {
+  "workers_dev": false,                 // perimeter: the *.workers.dev URL is not behind Access
   "name": "inno-app-replace",           // orchestrator/deploy sets to inno-app-{name}
   "main": "src/gateway/index.ts",
   "compatibility_date": "2026-03-10",
