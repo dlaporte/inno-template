@@ -37,13 +37,18 @@ See `CLAUDE.md` for details on identity, storage, and the container contract.
 
 ## Deploying
 
-Push to the main branch of your repository. CI (the platform's reusable
-workflow) then:
-1. Runs the security gates (config-integrity, secrets, SAST, deps, container).
-2. On all-green, exchanges a GitHub OIDC token with the platform's deploy
-   broker for a short-lived Cloudflare token and runs `wrangler deploy`
-   (gateway Worker + container).
-3. The broker attaches your `inno-{app}` domain and marks the app live.
+Deploys are RELEASE-driven: pushing to main runs the safety checks only;
+tagging a `v*` release is what deploys.
+
+1. **Push to main** — CI (the platform's reusable workflow) runs the safety
+   gates (config-integrity, secrets, SAST, deps, container). Nothing deploys:
+   this is your safety preflight, and you can push work-in-progress freely.
+2. **Tag a release** (`git tag v1.0.0 && git push origin v1.0.0`, or just run
+   `/inno-ship`) — the gates run again on the tagged commit, then CI exchanges
+   a GitHub OIDC token with the platform's deploy broker for a short-lived
+   Cloudflare token and runs `wrangler deploy` (gateway Worker + container).
+3. The broker attaches your `inno-{app}` domain, records the release, and
+   marks the app live.
 
 Your D1/R2 storage was provisioned at `create_app` time and is wired via the
 gateway's storage endpoint. (`/healthz` is a runtime contract the gateway
