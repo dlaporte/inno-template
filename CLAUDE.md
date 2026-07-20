@@ -38,6 +38,14 @@ async def me(request: Request) -> JSONResponse:
 (The stack is **Starlette — not FastAPI**. FastAPI is deliberately banned: it
 pins a vulnerable starlette 0.46 line; the platform requires `starlette>=1.3.1`.)
 
+**Sign out** is one link — no session code. Include it in your layout (footer is fine), targeting the platform-wide Cloudflare Access logout:
+
+```html
+<a href="https://{ACCESS_TEAM_DOMAIN}/cdn-cgi/access/logout">Sign out</a>
+```
+
+Replace `{ACCESS_TEAM_DOMAIN}` with the `ACCESS_TEAM_DOMAIN` value from this repo's `wrangler.jsonc` (also emitted by the platform MCP's `get_platform_status` tool) — don't invent or hard-code a domain from anywhere else. It must be the *team* domain: the app-hostname variant (`/cdn-cgi/access/logout` on this app) clears only one app's cookie, which the live global Access session silently re-issues. The team-domain logout ends the Access session for all platform apps; if the user's Okta session is still alive they can sign back in without a prompt — that's expected, not a bug.
+
 In local dev (ENVIRONMENT=dev), the gateway accepts mocked identity via request headers:
 - Pass `-H 'X-Mock-User: alice@example.com'` to set the user.
 - Pass `-H 'X-Mock-Groups: inno-<app>-users'` to set groups.
