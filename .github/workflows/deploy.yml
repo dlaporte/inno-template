@@ -11,6 +11,12 @@ name: deploy
 on:
   push:
     branches: [main]
+  # Lets the platform's security sweep respin this app (an automatic rebuild
+  # when a new CVE is found in the deployed image). The reusable workflow and
+  # the broker's provenance pins are event-independent, so a dispatched run
+  # deploys exactly like a push. Removing this only breaks YOUR app's
+  # auto-respin (the platform audits the failure and notifies admins).
+  workflow_dispatch: {}
 
 permissions:
   id-token: write
