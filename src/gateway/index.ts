@@ -69,8 +69,16 @@ export function makeApp(deps: Deps = realDeps) {
     } else {
       const token = c.req.header(ACCESS_JWT_HEADER) ?? readCookie(c.req.raw, "CF_Authorization");
       if (!token) return c.text("unauthorized", 401);
+      // The platform's health probe authenticates with an Access SERVICE
+      // token — a valid JWT with no user identity. It is accepted for
+      // exactly one request shape: GET /healthz. Any other path keeps the
+      // hard identity requirement (a service token can never browse the app
+      // or reach data as a person).
+      const isHealthProbe = c.req.method === "GET" && new URL(c.req.url).pathname === "/healthz";
       try {
-        identity = await verifyAccessJwt(token, { jwks: deps.jwks(env), aud: env.ACCESS_AUD, teamDomain: env.ACCESS_TEAM_DOMAIN });
+        identity = await verifyAccessJwt(token,
+          { jwks: deps.jwks(env), aud: env.ACCESS_AUD, teamDomain: env.ACCESS_TEAM_DOMAIN },
+          { allowService: isHealthProbe });
       } catch {
         return c.text("unauthorized", 401);
       }

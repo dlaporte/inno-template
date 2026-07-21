@@ -39,6 +39,31 @@ it("dev mode synthesizes mock identity without a JWT", async () => {
   expect((await res.json() as any).user).toBe("tester@x.org");
 });
 
+// Service-token JWTs (no email; common_name = the token's client id) are the
+// platform health probe's credential. Accepted for GET /healthz ONLY — any
+// other path/method stays a hard 401.
+it("accepts a service-token JWT for GET /healthz only", async () => {
+  const svc = await jwt({ common_name: "probe-client-id.access" });
+  // /healthz: allowed through, with EMPTY identity headers.
+  const ok = await makeApp(deps as any).fetch(
+    new Request("https://x/healthz", { headers: { "cf-access-jwt-assertion": svc } }), prodEnv);
+  expect(ok.status).toBe(200);
+  const body = await ok.json() as any;
+  expect(body.path).toBe("/healthz");
+  expect(body.user).toBe("");
+  // Any other path: rejected.
+  expect((await makeApp(deps as any).fetch(
+    new Request("https://x/page", { headers: { "cf-access-jwt-assertion": svc } }), prodEnv)).status).toBe(401);
+  // Non-GET /healthz: rejected.
+  expect((await makeApp(deps as any).fetch(
+    new Request("https://x/healthz", { method: "POST", headers: { "cf-access-jwt-assertion": svc } }), prodEnv)).status).toBe(401);
+  // A REAL user's JWT still reaches /healthz like any path.
+  const user = await jwt({ email: "real@x.org", groups: ["inno-demo-users"] });
+  const asUser = await makeApp(deps as any).fetch(
+    new Request("https://x/healthz", { headers: { "cf-access-jwt-assertion": user } }), prodEnv);
+  expect(((await asUser.json()) as any).user).toBe("real@x.org");
+});
+
 // CRITICAL INVARIANT: the public fetch handler must never route /_storage/* to
 // handleStorage directly. handleStorage is reachable ONLY as the container's
 // outboundByHost["storage.internal"] handler, never from the public internet.
