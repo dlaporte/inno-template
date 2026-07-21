@@ -6,9 +6,18 @@ This template guides you to build a secure, stateless container app on the Innov
 
 This is a template for a container-based application that runs on the Innovation Platform. The app container is paired with a Cloudflare Workers gateway that handles identity verification, proxies requests to the container, and provides access to shared storage.
 
-- **Gateway**: Runs on Cloudflare Workers; handles JWT verification and request routing.
-- **Container**: Runs your Python application on port 8080; receives authenticated requests from the gateway.
-- **Storage**: Shared R2 (object storage) and D1 (SQLite database) accessed via the storage client.
+- **Gateway**: Runs on Cloudflare Workers; handles JWT verification and request routing. Platform-owned — never edit it.
+- **Container**: Runs your application on port 8080; receives authenticated requests from the gateway.
+- **Storage**: The app's own R2 (object storage) and D1 (SQLite database), accessed over HTTP via the storage gateway.
+
+**`app/` and `Dockerfile` are a REFERENCE IMPLEMENTATION**, written in
+Python/Starlette — the platform's *tested stack*, which should work for most
+implementations. Alternative stacks are equally fine: the platform's contract
+is HTTP on port 8080, not a language. Keep the reference app as your starting
+point, or replace `app/` and the `Dockerfile` wholesale with Node, Go, Ruby,
+or anything else that meets the contract. Fetch the **`get_app_contract`**
+MCP tool for the full contract, the deployment patterns, and the current
+digest-pinned recommended base images (never hard-code a digest).
 
 Read `app/main.py` to see the reference implementation. The container is built from `Dockerfile` and deployed as a Durable Object.
 
@@ -35,8 +44,11 @@ async def me(request: Request) -> JSONResponse:
 # then add to your routes list: Route("/me", me)
 ```
 
-(The stack is **Starlette — not FastAPI**. FastAPI is deliberately banned: it
-pins a vulnerable starlette 0.46 line; the platform requires `starlette>=1.3.1`.)
+(The reference app uses Starlette. Any framework works the same way — read
+the two headers, never build your own login/sessions. One known trap if you
+choose FastAPI: older releases pin a CVE-bearing Starlette line that fails
+the platform's dependency/image gates — check your lockfile resolves a clean
+version before committing to it.)
 
 **Sign out** is one link — no session code. Include it in your layout (footer is fine), targeting the platform-wide Cloudflare Access logout:
 
@@ -74,6 +86,12 @@ content = await storage.get_file("profile/alice.json")
 
 The storage client communicates with the platform's shared storage via the gateway. `Storage()` defaults its base URL to `http://storage.internal`, which the gateway intercepts (via the container's outbound handler) and routes to the shared R2/D1 backends. **Leave `INNO_STORAGE_BASE` unset in normal use** — both locally (`npm run dev` / `./scripts/dev.sh`) and in production, the default `http://storage.internal` is correct. Only override `INNO_STORAGE_BASE` if you run the app process *outside* the container/gateway (an unusual setup). Do not point it at the gateway's public port — that proxies `/_storage` back to the container and loops.
 
+`app/storage.py` is the Python client; a non-Python app calls the same HTTP
+endpoints directly (they are plain JSON/bytes over HTTP): `POST
+/_storage/sql/query` and `/_storage/sql/execute` (`{sql, params}`),
+`PUT/GET/DELETE /_storage/files/{key}`, `GET /_storage/files`. Whatever the
+stack: durable state lives HERE, never on the container's disk.
+
 ## Container contract
 
 The container must adhere to these requirements:
@@ -87,13 +105,14 @@ Violating these contracts will cause deployment failures and health check timeou
 
 ## What CI enforces
 
-Plan 3's CI gate (`config-integrity`) enforces these constraints on the template and deployed apps:
+Every deploy runs the platform's gate suite — all hard-failing, each with its own job:
 
-1. **No hardcoded secrets** — Reject commits with credentials, API keys, or sensitive data in code or config.
-2. **No vulnerable dependencies** — Run dependency scanning; reject packages with known CVEs.
-3. **No privileged Dockerfile** — The Dockerfile must run as non-root; `USER` must be set before `CMD`.
-4. **No manual edits to wrangler resource limits** — The platform manages R2 buckets, D1 databases, and Durable Object limits via orchestration; hand-edits to `wrangler.jsonc` for these are rejected.
-5. **No edits to the gateway** — The gateway (`src/gateway/`) is templated by the platform. User apps must not modify it (except for reference/learning in local dev).
-6. **`ENVIRONMENT` must stay `"production"`** — The deployed app must keep `vars.ENVIRONMENT: "production"` in `wrangler.jsonc`. Setting it to `"dev"` enables mock-identity mode (the gateway trusts `X-Mock-User`/`X-Mock-Groups` headers and skips Access JWT verification) — an authentication bypass. CI rejects any deployed app whose `ENVIRONMENT` is not `production`. The `"dev"` value is only for local Wrangler dev.
+1. **No committed secrets** (`gitleaks`) — credentials or API keys anywhere in the working tree fail the build. App secrets are provisioned as container environment variables by a platform admin, never committed.
+2. **No vulnerable dependencies** (`deps` + `trivy`) — pip-audit scans Python manifests; the Trivy image scan covers everything the container actually ships (OS packages and language packages, any stack), HIGH/CRITICAL severity.
+3. **Container contract** (`container`) — the built image must `EXPOSE 8080` and run as a non-root `USER`; `/healthz` is a runtime contract the gateway depends on (not CI-checked).
+4. **No manual edits to wrangler resource limits** (`config-integrity`) — the platform manages R2 buckets, D1 databases, and Durable Object limits via orchestration; hand-edits to `wrangler.jsonc` for these are rejected.
+5. **No edits to the gateway** (`config-integrity`) — `src/gateway/` must be byte-identical to the template, along with `package.json`, the lockfile, and `tsconfig.json`. Read it freely; never modify it.
+6. **`ENVIRONMENT` must stay `"production"`** (`config-integrity`) — setting it to `"dev"` enables mock-identity mode (the gateway trusts `X-Mock-User`/`X-Mock-Groups` and skips Access JWT verification) — an authentication bypass. The `"dev"` value is only for local Wrangler dev.
+7. **SAST** (`semgrep`) — OWASP-top-ten patterns on `app/` (string-built HTML, raw SQL formatting, etc.).
 
-Respect these constraints to ensure your app can be deployed and operated safely.
+The full application contract — everything above plus the runtime requirements and deployment patterns — is served by the `get_app_contract` MCP tool. Respect these constraints to ensure your app can be deployed and operated safely.
