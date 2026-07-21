@@ -97,7 +97,7 @@ stack: durable state lives HERE, never on the container's disk.
 The container must adhere to these requirements:
 
 1. **Listen on port 8080** — The gateway forwards all traffic to this port.
-2. **Serve `/healthz` endpoint** — Return HTTP 200 if healthy. The production runtime uses this to monitor the container (CI does not probe it).
+2. **Serve `/healthz` endpoint** — Return HTTP 200 if healthy. Reserved for platform health monitoring: today only local tooling probes it (the Dockerfile HEALTHCHECK, dev sanity checks), but platform features bind to it without notice — keep it working and cheap.
 3. **Run as non-root** — The Dockerfile must create a non-root user and switch to it before running your app. The reference Dockerfile uses `useradd -m appuser && USER appuser`.
 4. **Graceful shutdown** — The container will receive SIGTERM; handle it cleanly.
 
