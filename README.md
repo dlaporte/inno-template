@@ -11,28 +11,26 @@ A template for building container-based applications on the Innovation Platform.
 
 ## Running Locally
 
-### Prerequisites
-- Node.js and npm
-- Docker (for building the container image)
+There is no local Wrangler dev flow for the worker side: the gateway
+(`src/gateway/`) and its build inputs (`package.json`, `package-lock.json`,
+`tsconfig.json`) aren't in this repo at all — the platform injects them at
+build time from the promoted `gateway.ref` (see "What's in This Template"
+below). `npx wrangler dev` has nothing to build against here; don't try.
 
-### Start the local dev gateway and container
-
-```bash
-./scripts/dev.sh
-```
-
-This starts Wrangler dev mode at `http://localhost:8787`. The gateway will build and run your container using Docker.
-
-### Test the app
+What you *can* run locally is the container in isolation:
 
 ```bash
-# In another terminal, with mocked identity:
-curl -H 'X-Mock-User: alice@example.com' \
-  -H 'X-Mock-Groups: inno-app-users' \
-  http://localhost:8787/
+docker build -t inno-app .
+docker run -p 8080:8080 inno-app
+curl http://localhost:8080/healthz
 ```
 
-See `CLAUDE.md` for details on identity, storage, and the container contract.
+This exercises `app/` and the `Dockerfile` exactly as CI's container gate
+does, but without the gateway in front — so there's no Access identity, no
+`X-Forwarded-*` headers, and no `/_storage/*` proxy. To exercise those, push
+to `main`: CI runs the full gate suite (including the gateway) as your
+safety preflight before any tag deploys. See `CLAUDE.md` for details on
+identity, storage, and the container contract.
 
 ## Deploying
 

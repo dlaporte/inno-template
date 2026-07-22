@@ -7,7 +7,8 @@ ENVIRONMENT=dev
 # Leave this UNSET in normal use. The Storage client defaults to
 # http://storage.internal, which the gateway intercepts (via the container's
 # outbound handler) and routes to the shared R2/D1 backends — this is correct
-# both locally (`npm run dev` / `./scripts/dev.sh`) and in production.
+# in production (there is no local Wrangler dev flow for the worker side;
+# see the README's "Running Locally" section).
 # Only set INNO_STORAGE_BASE if you run the app process OUTSIDE the
 # container/gateway. Do NOT point it at the gateway's public port.
 # INNO_STORAGE_BASE=http://storage.internal
