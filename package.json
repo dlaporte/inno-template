@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "test": "vitest run && npx vitest run --config vitest.config.node.ts",
+    "test": "vitest run --config vitest.config.node.ts",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit"
   },
@@ -14,7 +14,6 @@
     "jose": "^5"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "0.12.21",
     "@cloudflare/workers-types": "^4",
     "@types/node": "^26.1.1",
     "typescript": "^5",
