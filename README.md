@@ -56,9 +56,9 @@ relies on — keep it working — but CI does not probe it.)
 
 ## What's in This Template
 
-- `src/gateway/` — Cloudflare Workers gateway (do not edit).
+- `src/gateway/` — not in this repo. The gateway lives in `inno-platform` and is injected here at build time (config `gateway.ref`); `wrangler.jsonc`'s `main` names the injected path. Don't create this directory locally.
 - `app/` — Your Python application (Starlette reference implementation — FastAPI is not permitted; see CLAUDE.md).
 - `Dockerfile` — Container image definition.
 - `wrangler.jsonc` — Cloudflare Workers and container config.
-- `test/` — Test suite for gateway and app contracts.
+- `test/` — Node-based app-contract tests (storage client, Dockerfile checks).
 - `CLAUDE.md` — Platform constraints and best practices.
