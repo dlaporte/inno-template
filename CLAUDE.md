@@ -84,7 +84,7 @@ await storage.put_file("profile/alice.json", b'{"name": "Alice"}')
 content = await storage.get_file("profile/alice.json")
 ```
 
-The storage client communicates with the platform's shared storage via the gateway. `Storage()` defaults its base URL to `http://storage.internal`, which the gateway intercepts (via the container's outbound handler) and routes to the shared R2/D1 backends. **Leave `INNO_STORAGE_BASE` unset in normal use** — both locally (`npm run dev` / `./scripts/dev.sh`) and in production, the default `http://storage.internal` is correct. Only override `INNO_STORAGE_BASE` if you run the app process *outside* the container/gateway (an unusual setup). Do not point it at the gateway's public port — that proxies `/_storage` back to the container and loops.
+The storage client communicates with the platform's shared storage via the gateway. `Storage()` defaults its base URL to `http://storage.internal`, which the gateway intercepts (via the container's outbound handler) and routes to the shared R2/D1 backends. **Leave `INNO_STORAGE_BASE` unset in normal use** — both locally (`./scripts/dev.sh`) and in production, the default `http://storage.internal` is correct. Only override `INNO_STORAGE_BASE` if you run the app process *outside* the container/gateway (an unusual setup). Do not point it at the gateway's public port — that proxies `/_storage` back to the container and loops.
 
 `app/storage.py` is the Python client; a non-Python app calls the same HTTP
 endpoints directly (they are plain JSON/bytes over HTTP): `POST

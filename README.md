@@ -5,7 +5,7 @@ A template for building container-based applications on the Innovation Platform.
 ## Creating an App from This Template
 
 1. Click **"Use this template"** on GitHub to create a new repository.
-2. Clone your new repository and run `npm install`.
+2. Clone your new repository.
 3. Edit the container app in `app/main.py` and the Dockerfile as needed.
 4. Read `CLAUDE.md` for the platform's constraints (identity, persistence, container contract).
 
@@ -19,7 +19,6 @@ A template for building container-based applications on the Innovation Platform.
 
 ```bash
 ./scripts/dev.sh
-# or: npm run dev (if a dev script is configured in package.json)
 ```
 
 This starts Wrangler dev mode at `http://localhost:8787`. The gateway will build and run your container using Docker.
@@ -60,5 +59,4 @@ relies on — keep it working — but CI does not probe it.)
 - `app/` — Your Python application (Starlette reference implementation — FastAPI is not permitted; see CLAUDE.md).
 - `Dockerfile` — Container image definition.
 - `wrangler.jsonc` — Cloudflare Workers and container config.
-- `test/` — Node-based app-contract tests (storage client, Dockerfile checks).
 - `CLAUDE.md` — Platform constraints and best practices.
