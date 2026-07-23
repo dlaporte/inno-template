@@ -38,7 +38,7 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
 - `GET /healthz` must return 200 without touching storage — the platform probes it after deploy and on schedule.
-- Never build HTML by string concatenation with untrusted input; escape at every sink (the SAST gate rejects string-built HTML).
+- Never interpolate user data into hand-built HTML — even escaped; the SAST gate blocks it. Return dynamic data as JSON (like the scaffold's /me) or render through an auto-escaping template library; keep hand-written HTML fully static.
 - Do not add: a root `package.json`, any `wrangler.*` config, `.env` files, or `src/gateway/` — the platform injects all deploy configuration from the promoted gateway ref, and CI rejects shadow copies.
 
 ## What CI enforces
