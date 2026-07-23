@@ -58,3 +58,12 @@ relies on — keep it working — but CI does not probe it.)
 - `Dockerfile` — Container image definition.
 - `wrangler.jsonc` — Cloudflare Workers and container config.
 - `CLAUDE.md` — Platform constraints and best practices.
+
+## Deployment-type scaffolds
+
+This template carries BOTH deployment types: the container scaffold at the
+root (`Dockerfile`, `app/`, `lib/`) and the worker scaffold under
+`scaffold/worker/`. When the platform generates an app repo it prunes to
+exactly one, driven by the app's type (`scaffold/worker/.scaffold-remove`
+lists what the worker variant deletes). Generated repos never contain
+`scaffold/` — CI rejects it as a leftover.
