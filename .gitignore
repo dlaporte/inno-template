@@ -4,3 +4,4 @@ node_modules/
 dist/
 .superpowers/
 src/gateway/
+.DS_Store
