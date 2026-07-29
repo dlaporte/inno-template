@@ -5,8 +5,9 @@
 // never build auth here (see CLAUDE.md).
 //
 // This is a STATELESS Streamable-HTTP MCP server: a fresh transport + server per
-// request, with no session store. That is the right default on Workers (there is
-// no durable per-connection state to keep) and works with every MCP client.
+// request, with no session store. Stateless is the ONLY mode this platform
+// supports (see CLAUDE.md — server-initiated MCP features are unavailable), and
+// it works with every MCP client's tool calls.
 //
 // Contract highlights (see CLAUDE.md for the full version):
 //   - export default { fetch }                    (standard Worker module)
@@ -27,8 +28,9 @@ interface Env {
 
 // Build a fresh MCP server for a single request, closing over the caller's
 // gateway-verified identity so tools can authorize by user/group. Register your
-// tools here; pass `env` in too when a tool needs env.DATA / env.FILES.
-function buildServer(user: string, groups: string[]): McpServer {
+// tools here; `_env` is threaded through so a tool can use env.DATA / env.FILES
+// the moment you need them (rename it to `env` when you do).
+function buildServer(user: string, groups: string[], _env: Env): McpServer {
   const server = new McpServer({ name: "inno-mcp-app", version: "0.1.0" });
 
   // A read-only tool with NO inputs: reports who the platform says you are. The
@@ -66,7 +68,7 @@ function buildServer(user: string, groups: string[]): McpServer {
 }
 
 export default {
-  async fetch(request: Request, _env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
     // Health probe: 200 without touching storage. The platform (through its
@@ -76,6 +78,13 @@ export default {
     }
 
     if (url.pathname === "/mcp") {
+      // POST only. A stateless server has nothing to stream on GET (the SDK
+      // would hold a structurally-always-empty SSE stream open, burning a
+      // Worker invocation) and no session for DELETE to end — the MCP spec
+      // allows 405 for both.
+      if (request.method !== "POST") {
+        return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
+      }
       // Identity: spoof-proof headers the gateway injected after verifying the
       // caller's OAuth bearer token. Trust these; never parse a token yourself.
       const user = request.headers.get("X-Forwarded-User") ?? "";
@@ -84,7 +93,7 @@ export default {
 
       // Stateless: a new transport + server per request (no sessionIdGenerator).
       const transport = new WebStandardStreamableHTTPServerTransport();
-      const server = buildServer(user, groups);
+      const server = buildServer(user, groups, env);
       await server.connect(transport);
       return transport.handleRequest(request);
     }
