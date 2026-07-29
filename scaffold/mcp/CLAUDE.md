@@ -20,9 +20,11 @@ and no Dockerfile — CI skips the image gates for mcp-type apps.
 - **Storage**: your app's own D1 and R2 arrive as bindings (`env.DATA`, `env.FILES`).
 
 Your code and its dependencies live entirely under `app/`. MCP servers need npm
-packages, so this scaffold ships an `app/package.json` (the MCP SDK + zod); add
-more there. A ROOT package.json is rejected by CI — the platform injects the root
-build inputs.
+packages, so this scaffold ships an `app/package.json` (the MCP SDK + zod) AND an
+`app/package-lock.json`; add packages there and keep the lockfile committed —
+it is what lets the release-age gate date your dependencies and makes the deploy
+install (`npm ci`) the exact tree CI audited. A ROOT package.json is rejected by
+CI — the platform injects the root build inputs.
 
 ## Identity (do not build auth)
 
@@ -54,11 +56,19 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 ## Worker contract
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
-- `POST /mcp` is your MCP endpoint. This scaffold uses a STATELESS Streamable-HTTP
-  server (a fresh transport + `McpServer` per request, no `sessionIdGenerator`) —
-  the right default on Workers and compatible with every MCP client.
+- `POST /mcp` is your MCP endpoint. **Stateless only** — construct the transport
+  WITHOUT a `sessionIdGenerator` (a fresh transport + `McpServer` per request, as
+  the scaffold does). This is a platform requirement, not a preference: there is
+  no session store, so **server-initiated** MCP features do not work — no
+  notifications, sampling, elicitation, long-lived subscriptions, or SSE
+  resumability. If your app genuinely needs those, it does not fit this type
+  today. Non-POST methods on `/mcp` get a 405 (a stateless server has nothing to
+  stream on GET and no session for DELETE to end).
 - `GET /healthz` must return 200 without touching storage — the platform probes it
   after deploy and on schedule.
+- Do not implement or route `/.well-known/oauth-protected-resource` (or its
+  path-inserted `…/mcp` variant) — the platform's gateway serves both, and they
+  are part of the OAuth boundary you must not touch.
 - Register tools with `server.registerTool(name, { title, description, inputSchema }, handler)`;
   declare tool inputs as a zod raw shape (see `echo` in `app/index.ts`). Return
   results as MCP content (`{ content: [{ type: "text", text }] }`) — not HTML.
