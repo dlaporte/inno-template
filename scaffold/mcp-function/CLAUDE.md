@@ -53,7 +53,7 @@ container path's `http://storage.internal` client:
 
 Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-independent.
 
-## Worker contract
+## Function contract
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
 - `POST /mcp` is your MCP endpoint. **Stateless only** — construct the transport

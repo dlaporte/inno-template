@@ -11,7 +11,7 @@ A template for building container-based applications on the Innovation Platform.
 
 ## Running Locally
 
-There is no local Wrangler dev flow for the worker side: the gateway
+There is no local Wrangler dev flow for the Worker side: the gateway
 (`src/gateway/`) and its build inputs (`package.json`, `package-lock.json`,
 `tsconfig.json`) aren't in this repo at all — the platform injects them at
 build time from the promoted `gateway.ref` (see "What's in This Template"
@@ -62,8 +62,8 @@ relies on — keep it working — but CI does not probe it.)
 ## Deployment-type scaffolds
 
 This template carries BOTH deployment types: the container scaffold at the
-root (`Dockerfile`, `app/`, `lib/`) and the worker scaffold under
-`scaffold/worker/`. When the platform generates an app repo it prunes to
-exactly one, driven by the app's type (`scaffold/worker/.scaffold-remove`
-lists what the worker variant deletes). Generated repos never contain
+root (`Dockerfile`, `app/`, `lib/`) and the function scaffold under
+`scaffold/function/`. When the platform generates an app repo it prunes to
+exactly one, driven by the app's type (`scaffold/function/.scaffold-remove`
+lists what the function variant deletes). Generated repos never contain
 `scaffold/` — CI rejects it as a leftover.

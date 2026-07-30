@@ -21,8 +21,8 @@ interface Env {
 
 const PAGE = `<!doctype html>
 <meta charset="utf-8">
-<title>Worker scaffold</title>
-<h1>Worker-type scaffold</h1>
+<title>Function scaffold</title>
+<h1>Function-type scaffold</h1>
 <p>Build your app in <code>app/index.ts</code>. Your identity (verified by the
 gateway) is at <a href="/me"><code>/me</code></a>.</p>`;
 
