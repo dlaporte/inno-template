@@ -1,10 +1,10 @@
-# Innovation Platform App Template (worker type)
+# Innovation Platform App Template (function type)
 
 This template guides you to build a secure app as a Cloudflare Worker on the Innovation Platform.
 
 ## Innovation Platform App
 
-This is a worker-type application: your app is its OWN Cloudflare Worker running behind the platform's gateway. The gateway handles identity verification and request routing; your Worker receives already-authenticated requests. There is no container and no Dockerfile — CI skips the image gates for worker-type apps.
+This is a function-type application: your app is its OWN Cloudflare Worker running behind the platform's gateway. The gateway handles identity verification and request routing; your Worker receives already-authenticated requests. There is no container and no Dockerfile — CI skips the image gates for function-type apps.
 
 - **Gateway**: platform-owned, injected at deploy time — never edit or vendor it.
 - **Your Worker**: `app/index.ts`, a standard Worker module (`export default { fetch }`). Deployed with `workers_dev: false` and no route — only the gateway can reach it.
@@ -27,14 +27,14 @@ const user = request.headers.get("X-Forwarded-User");
 
 ## Persistence (use your bindings)
 
-Worker-type apps use their provisioned storage directly as bindings — not the container path's `http://storage.internal` client:
+Function-type apps use their provisioned storage directly as bindings — not the container path's `http://storage.internal` client:
 
 - `env.DATA` — your D1 (SQLite) database: `await env.DATA.prepare("SELECT ...").bind(x).all()`
 - `env.FILES` — your R2 bucket: `await env.FILES.put(key, body)` / `await env.FILES.get(key)`
 
 Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-independent.
 
-## Worker contract
+## Function contract
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
 - `GET /healthz` must return 200 without touching storage — the platform probes it after deploy and on schedule.
@@ -43,4 +43,4 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, on `app/`), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Worker-type apps skip the Docker build/Trivy/healthz-smoke image gates — there is no image.
+Every push to main runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, on `app/`), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Function-type apps skip the Docker build/Trivy/healthz-smoke image gates — there is no image.

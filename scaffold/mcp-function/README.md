@@ -11,7 +11,7 @@ at `https://inno-{app}.<platform-domain>/mcp` (the exact URL is shown by
 Everything you own is under `app/`. Start in `app/index.ts` — a stateless
 Streamable-HTTP MCP server with two example tools (`whoami`, `echo`) — and read
 `CLAUDE.md` for the platform's constraints: identity headers, storage bindings,
-and the worker contract.
+and the Function contract.
 
 This scaffold ships `app/package.json` with the MCP SDK and zod. Add more npm
 packages there (never a root package.json — the platform injects the root build

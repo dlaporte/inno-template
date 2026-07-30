@@ -1,19 +1,19 @@
-# {app} (worker type)
+# {app} (function type)
 
-A worker-type app on the Innovation Platform: your code in `app/index.ts` runs as its own Cloudflare Worker behind the platform's identity gateway.
+A function-type app on the Innovation Platform: your code in `app/index.ts` runs as its own Cloudflare Worker behind the platform's identity gateway.
 
 ## Developing
 
 Everything you own is under `app/`. Start in `app/index.ts` (a standard Worker
 `fetch` handler) and read `CLAUDE.md` for the platform's constraints —
-identity headers, storage bindings, and the worker contract.
+identity headers, storage bindings, and the Function contract.
 
 Need npm packages? Add them to `app/package.json` (never a root package.json —
 the platform injects the root build inputs at deploy time).
 
 ## Running locally
 
-There is no local dev flow for worker-type apps yet: the wrangler config and
+There is no local dev flow for function-type apps yet: the wrangler config and
 the gateway are injected at deploy time from the platform's promoted gateway
 ref, so `npx wrangler dev` has nothing to run against in this repo. Push to
 `main` instead — CI runs the full safety-gate suite as your preflight, without
