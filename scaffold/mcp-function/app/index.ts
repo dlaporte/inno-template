@@ -1,4 +1,4 @@
-// REFERENCE IMPLEMENTATION (TypeScript Worker) for an MCP-type app. Your whole
+// REFERENCE IMPLEMENTATION (TypeScript Worker) for an mcp-function-type app. Your whole
 // app lives in app/; this file is the module the platform deploys as your app
 // Worker. In front of it runs the platform's gateway, which has ALREADY verified
 // the caller's OAuth bearer token and injected spoof-proof identity headers —

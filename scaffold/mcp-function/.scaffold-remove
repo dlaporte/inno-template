@@ -1,6 +1,6 @@
 # Container-only files, deleted when an mcp-function-type repo is pruned.
 # One path per line; entries ending "/" delete the whole directory.
-# (app/ is re-added by this overlay: index.ts, package.json, and the .needs-build marker.)
+# (app/ is re-added by this overlay: index.ts, package.json, package-lock.json, and the .needs-build marker.)
 Dockerfile
 .dockerignore
 app/
