@@ -19,3 +19,24 @@ export class Storage {
 }
 
 export function currentUser(headers: Record<string, string> | Headers): CurrentUserResult;
+
+export interface ConnectionsOptions {
+  base?: string;
+  fetcher?: (url: string, init?: any) => Promise<Response>;
+}
+
+export interface ConnectionCredential {
+  access_token?: string;
+  header?: { name: string; value: string };
+  expires_at?: string | null;
+}
+
+export class Connections {
+  constructor(opts?: ConnectionsOptions);
+  get(name: string, callerAssertion: string): Promise<ConnectionCredential>;
+}
+
+export class NotConnected extends Error {
+  constructor(connectUrl: string);
+  connectUrl: string;
+}
