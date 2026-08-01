@@ -1,7 +1,8 @@
 This app has not been built yet.
 
 While this file exists, the platform's CI skips deployment: no app is served
-and no "live" email is sent. The new-app and migrate-app skills delete it once
-your real code is in place; `ship` refuses to deploy until it's gone.
+and no "live" email is sent. The inno-new-app and inno-migrate-app skills
+delete it once your real code is in place; inno-ship refuses to deploy until
+it's gone.
 
 Delete this file when you're ready for your first real deploy.

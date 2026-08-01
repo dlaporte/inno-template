@@ -9,7 +9,11 @@ Everything you own is under `app/`. Start in `app/index.ts` (a standard Worker
 identity headers, storage bindings, and the `## Function contract` section of `CLAUDE.md`.
 
 Need npm packages? Add them to `app/package.json` (never a root package.json —
-the platform injects the root build inputs at deploy time).
+the platform injects the root build inputs at deploy time). The scaffold
+itself ships dependency-free — `index.ts` references `D1Database`/`R2Bucket`
+as ambient types; for editor/typecheck support, add
+`@cloudflare/workers-types` as a devDependency when you create
+`app/package.json`.
 
 ## Running locally
 

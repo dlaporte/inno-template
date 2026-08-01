@@ -1,7 +1,8 @@
 node_modules/
+__pycache__/
+*.pyc
 .dev.vars
 .wrangler/
 dist/
-.superpowers/
 src/gateway/
 .DS_Store
