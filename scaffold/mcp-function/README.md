@@ -1,6 +1,6 @@
-# {app} (mcp-function type)
+# {app} (mcp type)
 
-An mcp-function-type app on the Innovation Platform: your code in `app/index.ts` runs as
+An mcp-type app on the Innovation Platform: your code in `app/index.ts` runs as
 its own Cloudflare Worker — a Model Context Protocol (MCP) server — behind the
 platform's OAuth identity gateway. MCP clients (Claude Code, claude.ai) reach it
 at `https://inno-{app}.<platform-domain>/mcp` (the exact URL is shown by
@@ -11,7 +11,7 @@ at `https://inno-{app}.<platform-domain>/mcp` (the exact URL is shown by
 Everything you own is under `app/`. Start in `app/index.ts` — a stateless
 Streamable-HTTP MCP server with two example tools (`whoami`, `echo`) — and read
 `CLAUDE.md` for the platform's constraints: identity headers, storage bindings,
-and the `## Function contract` section of `CLAUDE.md`.
+and the Function contract.
 
 This scaffold ships `app/package.json` with the MCP SDK and zod. Add more npm
 packages there (never a root package.json — the platform injects the root build
@@ -19,7 +19,7 @@ inputs at deploy time).
 
 ## Running locally
 
-There is no local dev flow for mcp-function-type apps yet: the wrangler config and the
+There is no local dev flow for mcp-type apps yet: the wrangler config and the
 gateway are injected at deploy time from the platform's promoted gateway ref, so
 `npx wrangler dev` has nothing to run against in this repo. Push to `main`
 instead — CI runs the full safety-gate suite as your preflight, without deploying.
