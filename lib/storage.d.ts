@@ -12,6 +12,8 @@ export class Storage {
   constructor(opts?: StorageOptions);
   query(sql: string, params?: unknown[]): Promise<unknown[]>;
   execute(sql: string, params?: unknown[]): Promise<unknown>;
+  queryLinked(sourceApp: string, sql: string, params?: unknown[]): Promise<unknown[]>;
+  executeLinked(sourceApp: string, sql: string, params?: unknown[]): Promise<unknown>;
   putFile(key: string, bytes: unknown): Promise<unknown>;
   getFile(key: string): Promise<Uint8Array | null>;
   listFiles(): Promise<string[]>;

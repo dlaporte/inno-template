@@ -5,4 +5,3 @@ Dockerfile
 .dockerignore
 app/
 lib/
-.dev.vars.example

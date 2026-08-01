@@ -6,6 +6,9 @@
 #   - non-root USER before CMD                  (CI-enforced)
 #   - GET /healthz -> 200                       (runtime contract)
 #   - image passes Trivy HIGH/CRITICAL          (CI-enforced)
+# The base tag floats deliberately: a template cannot carry a digest the
+# platform admin rotates in the config store. When scaffolding a real app,
+# use the CURRENT digest-pinned base served by get_app_contract instead.
 FROM python:3.12-slim
 # Patch base-image OS packages so the container image passes the platform's
 # Trivy HIGH/CRITICAL gate (Debian slim can ship with fixable CVEs).
