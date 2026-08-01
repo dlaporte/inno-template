@@ -61,9 +61,10 @@ relies on — keep it working — but CI does not probe it.)
 
 ## Deployment-type scaffolds
 
-This template carries BOTH deployment types: the container scaffold at the
-root (`Dockerfile`, `app/`, `lib/`) and the function scaffold under
-`scaffold/function/`. When the platform generates an app repo it prunes to
-exactly one, driven by the app's type (`scaffold/function/.scaffold-remove`
-lists what the function variant deletes). Generated repos never contain
-`scaffold/` — CI rejects it as a leftover.
+This template carries every deployment type: the container scaffold at the
+root (`Dockerfile`, `app/`, `lib/` — where the `container` and `mcp-container`
+presets start) and one overlay per function-shaped preset,
+`scaffold/function/` and `scaffold/mcp-function/`. When the platform generates
+an app repo it prunes to exactly one, driven by the app's type (each overlay's
+`.scaffold-remove` lists what that variant deletes). Generated repos never
+contain `scaffold/` — CI rejects it as a leftover.

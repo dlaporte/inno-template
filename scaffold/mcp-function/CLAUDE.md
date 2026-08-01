@@ -1,16 +1,16 @@
-# Innovation Platform App Template (mcp type)
+# Innovation Platform App Template (mcp-function type)
 
 This template guides you to build a secure MCP server on the Innovation Platform.
 
 ## Innovation Platform App
 
-This is an mcp-type application: your app is a Cloudflare Worker that speaks the
+This is an mcp-function-type application: your app is a Cloudflare Worker that speaks the
 Model Context Protocol (MCP), reached by MCP clients (Claude Code, claude.ai) over
 OAuth instead of a browser login. The platform's gateway sits in front as an OAuth
 2.1 Resource Server: it verifies the caller's platform-issued bearer token (minted
 by the platform's Authorization Server, audience-bound to THIS app) and forwards
 the request to your Worker with spoof-proof identity headers. There is no container
-and no Dockerfile — CI skips the image gates for mcp-type apps.
+and no Dockerfile — CI skips the image gates for mcp-function-type apps.
 
 - **Gateway**: platform-owned, injected at deploy time — never edit or vendor it.
   It is the OAuth boundary; your Worker never sees or parses a token.
@@ -45,7 +45,7 @@ by user or group. Never trust anything the client claims about its own identity.
 
 ## Persistence (use your bindings)
 
-Mcp-type apps use their provisioned storage directly as bindings — not the
+Mcp-function-type apps use their provisioned storage directly as bindings — not the
 container path's `http://storage.internal` client:
 
 - `env.DATA` — your D1 (SQLite) database: `await env.DATA.prepare("SELECT ...").bind(x).all()`
@@ -81,5 +81,5 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 Every push to main runs the platform's safety gates (your preflight); tagging a
 `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, on `app/`),
 dependency audits (`app/package.json`), config-integrity (this file's headers, no
-shadow configs), and release-age cooldown. Mcp-type apps skip the Docker
+shadow configs), and release-age cooldown. Mcp-function-type apps skip the Docker
 build/Trivy/healthz-smoke image gates — there is no image.
