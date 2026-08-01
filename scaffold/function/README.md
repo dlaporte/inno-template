@@ -6,7 +6,7 @@ A function-type app on the Innovation Platform: your code in `app/index.ts` runs
 
 Everything you own is under `app/`. Start in `app/index.ts` (a standard Worker
 `fetch` handler) and read `CLAUDE.md` for the platform's constraints —
-identity headers, storage bindings, and the `## Function contract` section of `CLAUDE.md`.
+identity headers, storage bindings, and the Function contract.
 
 Need npm packages? Add them to `app/package.json` (never a root package.json —
 the platform injects the root build inputs at deploy time).
