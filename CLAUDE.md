@@ -162,7 +162,7 @@ to the `FastMCP(...)` constructor.
 
 Every deploy runs the platform's gate suite — all hard-failing, each with its own job:
 
-1. **No committed secrets** (`gitleaks`) — credentials or API keys anywhere in the working tree fail the build. App secrets are provisioned as container environment variables by a platform admin, never committed.
+1. **No committed secrets** (`gitleaks`) — credentials or API keys anywhere in the working tree fail the build. App secrets are provisioned as environment variables through the platform's Variables facility (the app page's Variables tab, or set_app_variable), never committed.
 2. **No vulnerable dependencies** (`deps` + `trivy`) — pip-audit scans Python manifests; the Trivy image scan covers everything the container actually ships (OS packages and language packages, any stack), HIGH/CRITICAL severity.
 3. **Container contract** (`container`) — the built image must `EXPOSE 8080`, run as a non-root `USER`, and answer `GET /healthz` with 200 within 90s of `docker run` (the smoke gate).
 4. **No platform-owned files in the repo** (`config-integrity`) — `wrangler.jsonc` must NOT exist here (nor any other wrangler config or a `.wrangler/` cache dir): the platform injects it at build time from the promoted `gateway.ref` and templates the per-app values. The injected config guarantees `ENVIRONMENT = "production"` (the `"dev"` value would flip the gateway into mock-identity auth bypass) and the resource limits — platform-owned facts an app repo cannot influence. The same must-not-exist rule covers the repo-root worker build inputs `package.json`/`package-lock.json`/`tsconfig.json` (your app's own build files under `app/` are fine) and root `.env*`/`.npmrc`/`.yarnrc*` files (deploy-build hygiene).
