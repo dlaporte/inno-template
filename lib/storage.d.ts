@@ -42,3 +42,7 @@ export class NotConnected extends Error {
   constructor(connectUrl: string);
   connectUrl: string;
 }
+
+export class ConnectionLocked extends NotConnected {
+  constructor(connectUrl: string);
+}
