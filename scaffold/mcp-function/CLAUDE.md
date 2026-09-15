@@ -21,10 +21,13 @@ and no Dockerfile — CI skips the image gates for mcp-function-type apps.
 
 Your code and its dependencies live entirely under `app/`. MCP servers need npm
 packages, so this scaffold ships an `app/package.json` (the MCP SDK + zod) AND an
-`app/package-lock.json`; add packages there and keep the lockfile committed —
-it is what lets the release-age gate date your dependencies and makes the deploy
-install (`npm ci`) the exact tree CI audited. A ROOT package.json is rejected by
-CI — the platform injects the root build inputs.
+`app/package-lock.json`. Add packages with `npm install <pkg>` inside `app/` and
+commit both files together: the release deploy runs `npm ci` and fails if the
+lockfile is missing or out of step (a push to main does not catch that), the
+lockfile is what lets the release-age gate date your dependencies, and every
+package you import must be declared here because nothing is installed at the
+repo root. A ROOT package.json is rejected by CI; the platform injects the root
+build inputs.
 
 ## Identity (do not build auth)
 
@@ -34,14 +37,20 @@ The gateway has already verified the caller's OAuth bearer token and injects
 spoof-proof headers on every forwarded request:
 
 - `X-Forwarded-User`: the user's email (e.g. `alice@example.com`)
-- `X-Forwarded-Groups`: comma-separated group list
+- `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
+  `inno-<app>-users` for a member, `inno-<app>-open` while the app is open to
+  everyone. It never names the admin group or another app's groups. On an open
+  app it can be empty for a non-member who was just admitted: treat that as
+  "not a member".
 
 ```ts
 const user = request.headers.get("X-Forwarded-User");
 ```
 
 Close these over your MCP server (as `app/index.ts` does) so tools can authorize
-by user or group. Never trust anything the client claims about its own identity.
+by user, or by membership versus open access; a finer role needs your own store
+keyed on `X-Forwarded-User`. Never trust anything the client claims about its own
+identity.
 
 ## Persistence (use your bindings)
 
@@ -72,14 +81,19 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 - Register tools with `server.registerTool(name, { title, description, inputSchema }, handler)`;
   declare tool inputs as a zod raw shape (see `echo` in `app/index.ts`). Return
   results as MCP content (`{ content: [{ type: "text", text }] }`) — not HTML.
-- Do not add: a root `package.json`, any `wrangler.*` config, `.env` files, or
-  `src/gateway/` — the platform injects all deploy configuration from the promoted
-  gateway ref, and CI rejects shadow copies.
+- Do not add: anything under a root `src/` (the platform owns that directory), a
+  root `package.json`, `package-lock.json` or `tsconfig.json`, any `wrangler.*`
+  config or `.wrangler/` directory, root `.env` files, root package manager config
+  (`.yarnrc`, `.yarnrc.yml`, `.pnpmfile.cjs`, `pnpm-workspace.yaml`,
+  `bunfig.toml`), or a `.npmrc` anywhere, `app/.npmrc` included. The platform
+  injects all deploy configuration from the promoted gateway ref, and CI rejects
+  shadow copies.
 
 ## What CI enforces
 
 Every push to main runs the platform's safety gates (your preflight); tagging a
-`v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, on `app/`),
-dependency audits (`app/package.json`), config-integrity (this file's headers, no
-shadow configs), and release-age cooldown. Mcp-function-type apps skip the Docker
-build/Trivy/healthz-smoke image gates — there is no image.
+`v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the
+whole repository except the platform-owned root `src/`), dependency audits
+(`app/package.json`), config-integrity (this file's headers, no shadow configs),
+and release-age cooldown. Mcp-function-type apps skip the Docker
+build/Trivy/healthz-smoke image gates (there is no image).

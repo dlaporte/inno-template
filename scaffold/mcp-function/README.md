@@ -13,9 +13,11 @@ Streamable-HTTP MCP server with two example tools (`whoami`, `echo`) — and rea
 `CLAUDE.md` for the platform's constraints: identity headers, storage bindings,
 and the `## Function contract` section of `CLAUDE.md`.
 
-This scaffold ships `app/package.json` with the MCP SDK and zod. Add more npm
-packages there (never a root package.json — the platform injects the root build
-inputs at deploy time).
+This scaffold ships `app/package.json` with the MCP SDK and zod, plus
+`app/package-lock.json`. Add more npm packages with `npm install <pkg>` inside
+`app/` and commit both files (never a root package.json; the platform injects the
+root build inputs at deploy time). A release fails if the committed lockfile is
+missing or out of step.
 
 ## Running locally
 
