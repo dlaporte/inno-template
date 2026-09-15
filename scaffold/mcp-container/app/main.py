@@ -11,7 +11,7 @@
 #
 # Contract highlights (see CLAUDE.md for the full version):
 #   - `app` below is the ASGI app the Dockerfile serves (uvicorn on 0.0.0.0:8080)
-#   - POST /mcp     -> the MCP endpoint (JSON-RPC over Streamable HTTP)
+#   - POST /mcp     -> the MCP endpoint (JSON-RPC over Streamable HTTP; GET/DELETE 405)
 #   - GET  /healthz -> 200, storage-independent   (CI smoke gate + runtime probe)
 #   - identity arrives as spoof-proof request headers (gateway-injected)
 #   - durable state goes through storage.py, never the container's disk
@@ -19,7 +19,7 @@
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, PlainTextResponse
 
 from storage import current_user
 
@@ -62,4 +62,15 @@ async def echo(message: str) -> str:
 
 
 # Streamable HTTP at /mcp plus the custom routes above, as one ASGI app.
-app = mcp.streamable_http_app()
+mcp_app = mcp.streamable_http_app()
+
+
+async def app(scope, receive, send):
+    # POST only on /mcp. A stateless server has nothing to stream on GET (FastMCP
+    # would hold an empty SSE stream open, keeping the container awake) and no
+    # session for DELETE to end; the MCP spec allows 405 for both.
+    if scope["type"] == "http" and scope["path"] in ("/mcp", "/mcp/") and scope["method"] != "POST":
+        response = PlainTextResponse("method not allowed", status_code=405, headers={"Allow": "POST"})
+        await response(scope, receive, send)
+        return
+    await mcp_app(scope, receive, send)

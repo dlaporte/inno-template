@@ -71,13 +71,16 @@ except NotConnected as e:  # relay e.connect_url to the user verbatim
   clean `/etc/passwd` line with such a uid, as the reference `useradd -m appuser`
   writes). The `Dockerfile` serves `main:app`. Handle SIGTERM cleanly. After a deploy,
   a running instance keeps the old image until it sleeps or you run `restart_app`.
+  An idle container sleeps (`container.sleep_after`, default 10 minutes) and wakes
+  on the next request, so the first call after idle is slower.
 - `GET /healthz` must return 200 without touching storage (R2): CI's smoke gate
   wants it within 90s of `docker run`, and the platform probes it after deploy and daily.
 - `POST /mcp` is your MCP endpoint. **Stateless only** (`stateless_http=True`).
   This is a platform requirement, not a preference: there is no session store, so
   **server-initiated** MCP features do not work: no notifications, sampling,
   elicitation, long-lived subscriptions, or SSE resumability. If your app genuinely
-  needs those, it does not fit this type today.
+  needs those, it does not fit this type today. `app/main.py` answers GET and DELETE
+  on `/mcp` with 405: an open GET stream would only hold the container awake.
 - Keep `transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False)`
   on `FastMCP(...)`: by default FastMCP accepts only localhost `Host` headers, and
   every request the gateway proxies fails with `421 Invalid Host header`.
