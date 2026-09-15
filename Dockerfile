@@ -3,9 +3,9 @@
 # the same for every language (fetch the get_app_contract MCP tool for the
 # full contract and the CURRENT digest-pinned recommended base images):
 #   - EXPOSE 8080 and listen on 0.0.0.0:8080   (CI-enforced)
-#   - non-root USER before CMD                  (CI-enforced: root, 0, 0:gid,
-#     root:group and a name resolving to uid 0 are refused; a named user must
-#     exist in the image's own /etc/passwd)
+#   - non-root USER before CMD                  (CI-enforced, APP-CONTRACT R1
+#     from platform v0.14.4: a plain uid 1 to 2147483647, or a portable name
+#     on one clean /etc/passwd line with such a uid, as useradd writes it)
 #   - GET /healthz -> 200 within 90s            (CI smoke test + runtime probe)
 #   - image passes Trivy HIGH/CRITICAL          (CI-enforced; the scanned image
 #     is the one that deploys, pushed by digest)
