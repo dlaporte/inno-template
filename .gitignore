@@ -4,5 +4,6 @@ __pycache__/
 .dev.vars
 .wrangler/
 dist/
-src/gateway/
+/src/gateway/
+.npmrc
 .DS_Store

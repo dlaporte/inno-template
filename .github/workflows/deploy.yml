@@ -28,7 +28,12 @@ permissions:
   contents: read
 
 # Adapting this platform to your own accounts? Re-point the `uses:` ref below
-# at YOUR fork of inno-platform (OPERATIONS §4.6 step 6).
+# at YOUR copy of the public inno-platform-ci mirror (OPERATIONS 4.6 step 6).
+# The platform reads your app name from "with: app:" and otherwise from this
+# repository's name minus any inno- prefix; either must match
+# ^[a-z][a-z0-9-]{2,28}$ or the run fails before any gate. If your repository
+# is not named after your app, add "with:" and "app: <your app name>" under
+# uses: below, as the deploy.yml that register_app hands you does.
 jobs:
   platform:
     # Skip on the template repo itself (is_template=true): the template is not
