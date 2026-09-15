@@ -1,0 +1,5 @@
+starlette==1.3.*
+uvicorn[standard]==0.32.*
+httpx==0.27.*
+# mcp 2 renamed FastMCP to MCPServer; main.py is written for the 1.x API.
+mcp>=1.12.0,<2

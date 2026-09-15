@@ -103,12 +103,15 @@ or any file under `src/`, fails the config-integrity gate.
 ## Deployment-type scaffolds
 
 This template carries every deployment type: the container scaffold at the
-root (`Dockerfile`, `app/`, `lib/` — where the `container` and `mcp-container`
-presets start) and one overlay per function-shaped preset,
-`scaffold/function/` and `scaffold/mcp-function/`. When the platform generates
-an app repo it prunes to exactly one, driven by the app's type (each overlay's
-`.scaffold-remove` lists what that variant deletes). Generated repos never
-contain `scaffold/` — CI rejects it as a leftover.
+root (`Dockerfile`, `app/`, `lib/`, where the `container` preset starts) and one
+overlay for each other preset. The function-shaped overlays,
+`scaffold/function/` and `scaffold/mcp-function/`, replace the container files
+with a Worker; `scaffold/mcp-container/` keeps the container shape (the root
+`Dockerfile`, `lib/` and `app/storage.py`) and swaps in a FastMCP server. When
+the platform generates an app repo it prunes to exactly one, driven by the
+app's type: an overlay's files replace their root namesakes, and its
+`.scaffold-remove` lists what that variant deletes outright. Generated repos
+never contain `scaffold/`: CI rejects it as a leftover.
 
 ## Maintainer notes
 
