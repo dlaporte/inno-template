@@ -37,4 +37,9 @@ jobs:
     # template repos and run normally.
     if: ${{ !github.event.repository.is_template }}
     uses: dlaporte/inno-platform-ci/.github/workflows/platform-ci.yml@main
-    secrets: inherit
+    # No secrets are passed, on purpose: do not add a secrets: line. The
+    # platform workflow declares no workflow_call secrets, and the only one it
+    # reads is GITHUB_TOKEN, which GitHub gives every called workflow on its
+    # own. Inheriting would hand every secret in this repo to the mirror's
+    # workflow, and the platform's SAST gate (semgrep rule
+    # yaml.github-actions.security.secrets-inherit) fails the build on it.
