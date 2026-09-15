@@ -32,8 +32,11 @@ permissions:
 # The platform reads your app name from "with: app:" and otherwise from this
 # repository's name minus any inno- prefix; either must match
 # ^[a-z][a-z0-9-]{2,28}$ or the run fails before any gate. If your repository
-# is not named after your app, add "with:" and "app: <your app name>" under
-# uses: below, as the deploy.yml that register_app hands you does.
+# is not named after your app, add these two lines right after the uses: line
+# below, with "with:" at the same indentation as "uses:" (a sibling key, not
+# nested under it), as the deploy.yml that register_app hands you does:
+#     with:
+#       app: <your app name>
 jobs:
   platform:
     # Skip on the template repo itself (is_template=true): the template is not
