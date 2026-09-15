@@ -71,6 +71,14 @@ class NotConnected(Exception):
         self.connect_url = connect_url
 
 
+class ConnectionLocked(NotConnected):
+    """The credential exists, but this MCP client's grant cannot open it: re-authorize the client, do not reconnect the backend."""
+
+    def __init__(self, connect_url: str):
+        super().__init__(connect_url)
+        self.args = (f"connection locked: reconnect your MCP client to this app (or open {connect_url} while signed in) and try again",)
+
+
 # Per-user backend credentials (APP-CONTRACT §2.2). `caller_assertion` is the
 # value of THIS request's inbound X-Caller-Assertion header — the app must
 # echo it (identity rides only that platform-signed token). Returns a live
@@ -91,5 +99,5 @@ class Connections:
         r.raise_for_status()
         out = r.json()
         if out.get("status") == "not_connected":
-            raise NotConnected(out.get("connect_url"))
+            raise (ConnectionLocked if out.get("locked") else NotConnected)(out.get("connect_url"))
         return {"access_token": out.get("access_token"), "header": out.get("header"), "expires_at": out.get("expires_at")}
