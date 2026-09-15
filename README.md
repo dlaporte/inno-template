@@ -19,8 +19,9 @@ A template for building container-based applications on the Innovation Platform.
    D1, R2). (The `register_app` / `get_app_contract` / `get_platform_status`
    tools come from the platform's `innovation-platform` plugin; see the
    `inno-platform` repo's USER-GUIDE for setup.)
-3. Clone your new repository and build your app — for the container type,
-   start in `app/main.py` and the Dockerfile.
+3. Pull (or clone) your repository after the second call, which pushes the
+   scaffold commit, and build your app: for the container type, start in
+   `app/main.py` and the Dockerfile.
 4. Read `CLAUDE.md` for the platform's constraints (identity, persistence, container contract).
 
 ## Running Locally

@@ -23,7 +23,7 @@ Your code and its dependencies live entirely under `app/`. MCP servers need npm
 packages, so this scaffold ships an `app/package.json` (the MCP SDK + zod) AND an
 `app/package-lock.json`. Add packages with `npm install <pkg>` inside `app/` and
 commit both files together: the release deploy runs `npm ci` and fails if the
-lockfile is missing or out of step (a push to main does not catch that), the
+lockfile is missing or out of step (a push to main does not reliably catch that), the
 lockfile is what lets the release-age gate date your dependencies, and every
 package you import must be declared here because nothing is installed at the
 repo root. A ROOT package.json is rejected by CI; the platform injects the root
@@ -39,7 +39,8 @@ spoof-proof headers on every forwarded request:
 - `X-Forwarded-User`: the user's email (e.g. `alice@example.com`)
 - `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
   `inno-<app>-users` for a member, `inno-<app>-open` while the app is open to
-  everyone. It never names the admin group or another app's groups. On an open
+  everyone. It never names the admin group or another app's groups, and that
+  holds for every MCP app already, whatever gateway it last deployed on. On an open
   app it can be empty for a non-member who was just admitted: treat that as
   "not a member".
 
@@ -93,7 +94,9 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 
 Every push to main runs the platform's safety gates (your preflight); tagging a
 `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the
-whole repository except the platform-owned root `src/`), dependency audits
+whole repository except the platform-owned root `src/` and semgrep's
+default-ignored directories: `test/`, `tests/`, `build/`, `dist/`, `vendor/`,
+`node_modules/`, at any depth), dependency audits
 (`app/package.json`), config-integrity (this file's headers, no shadow configs),
 and release-age cooldown. Mcp-function-type apps skip the Docker
 build/Trivy/healthz-smoke image gates (there is no image).

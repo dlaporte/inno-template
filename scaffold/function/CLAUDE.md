@@ -10,7 +10,7 @@ This is a function-type application: your app is its OWN Cloudflare Worker runni
 - **Your Worker**: `app/index.ts`, a standard Worker module (`export default { fetch }`). Deployed with `workers_dev: false` and no route — only the gateway can reach it.
 - **Storage**: your app's own D1 and R2 arrive as bindings (`env.DATA`, `env.FILES`).
 
-Your code and its dependencies live entirely under `app/`. If you need npm packages, add `app/package.json`, run `npm install` inside `app/`, and commit the generated `app/package-lock.json` with it: the release deploy runs `npm ci` and fails without a committed lockfile that matches `app/package.json` (a push to main does not catch this). Declare every package you import in `app/package.json` itself; nothing is installed at the repo root. A ROOT package.json is rejected by CI; the platform injects the root build inputs.
+Your code and its dependencies live entirely under `app/`. If you need npm packages, add `app/package.json`, run `npm install` inside `app/`, and commit the generated `app/package-lock.json` with it: the release deploy runs `npm ci` and fails without a committed lockfile that matches `app/package.json` (a push to main does not reliably catch this). Declare every package you import in `app/package.json` itself; nothing is installed at the repo root. A ROOT package.json is rejected by CI; the platform injects the root build inputs.
 
 ## Identity (do not build auth)
 
@@ -19,7 +19,7 @@ Your code and its dependencies live entirely under `app/`. If you need npm packa
 The gateway has already verified the user and injects spoof-proof headers:
 
 - `X-Forwarded-User`: the user's email (e.g. `alice@example.com`)
-- `X-Forwarded-Groups`: comma-separated, and only this app's own groups: `inno-<app>-users` when the caller is a member, `inno-<app>-open` while the app is open to everyone. Nothing else (no admin group, no other app's groups), so finer roles need your own store keyed on `X-Forwarded-User`.
+- `X-Forwarded-Groups`: comma-separated, and only this app's own groups: `inno-<app>-users` when the caller is a member, `inno-<app>-open` while the app is open to everyone. Nothing else (no admin group, no other app's groups), so finer roles need your own store keyed on `X-Forwarded-User`. An app last deployed before the platform v0.14.3 gateway still receives its other groups until its next deploy.
 - `X-Forwarded-Host`, `X-Forwarded-Proto` and `X-Forwarded-For` are also gateway-set; every other header (including `X-Real-IP`) is caller-controlled.
 
 ```ts
@@ -44,4 +44,4 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the whole repository except the platform-owned root `src/`, so `.github/workflows/deploy.yml` is scanned too), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Function-type apps skip the Docker build/Trivy/healthz-smoke image gates (there is no image). The release deploy additionally requires a committed `app/package-lock.json` whenever `app/package.json` exists.
+Every push to main runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the whole repository except the platform-owned root `src/` and semgrep's default-ignored directories (`test/`, `tests/`, `build/`, `dist/`, `vendor/`, `node_modules/`, at any depth), so `.github/workflows/deploy.yml` is scanned too), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Function-type apps skip the Docker build/Trivy/healthz-smoke image gates (there is no image). The release deploy additionally requires a committed `app/package-lock.json` whenever `app/package.json` exists.
