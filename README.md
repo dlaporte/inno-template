@@ -7,14 +7,18 @@ A template for building container-based applications on the Innovation Platform.
 1. Click **"Use this template"** on GitHub to create a new repository — any
    account or org, public or private; you own the repo, and the platform never
    hosts your source.
-2. Install the platform's GitHub App on that repository (repo-only access is
-   fine), then register it: call the **`register_app`** MCP tool, follow the
-   install link it returns, and call `register_app` again with the same
-   arguments to finish. Registration prunes the template to your chosen
-   deployment type and provisions the app (Okta group, Access, D1, R2).
-   (The `register_app` / `get_app_contract` / `get_platform_status` tools come
-   from the platform's `innovation-platform` plugin — see the `inno-platform`
-   repo's USER-GUIDE for setup.)
+2. Register it: call the **`register_app`** MCP tool. The first call returns
+   a proof-of-control file (a path under `.inno-platform/` and its exact
+   contents) and the platform GitHub App install link. Commit that file on
+   your repository's default branch and push it, install the App on the
+   repository (repo-only access is fine; if the App is already installed with
+   access to it, skip the link), then call `register_app` again with the same
+   arguments to finish. The second call refuses with `repo_control_unproven`
+   until the file is on the default branch. Registration prunes the template
+   to your chosen deployment type and provisions the app (Okta group, Access,
+   D1, R2). (The `register_app` / `get_app_contract` / `get_platform_status`
+   tools come from the platform's `innovation-platform` plugin; see the
+   `inno-platform` repo's USER-GUIDE for setup.)
 3. Clone your new repository and build your app — for the container type,
    start in `app/main.py` and the Dockerfile.
 4. Read `CLAUDE.md` for the platform's constraints (identity, persistence, container contract).
@@ -56,12 +60,13 @@ Deploys are RELEASE-driven: pushing to main runs the safety checks only;
 tagging a `v*` release is what deploys.
 
 1. **Push to main** — CI (the platform's reusable workflow) runs the safety
-   gates (config-integrity, secrets, SAST, deps, container). Nothing deploys:
+   gates (config-integrity, secrets, SAST, deps, dep-age, container). Nothing deploys:
    this is your safety preflight, and you can push work-in-progress freely.
 2. **Tag a release** (`git tag v1.0.0 && git push origin v1.0.0`, or just run
    `/inno-ship`) — the gates run again on the tagged commit, then CI exchanges
    a GitHub OIDC token with the platform's deploy broker for a short-lived
-   Cloudflare token and runs `wrangler deploy` (gateway Worker + container).
+   Cloudflare token, pushes the exact container image the gates just scanned
+   (pinned by digest), and deploys the gateway Worker in front of it.
 3. The broker attaches your `inno-{app}` domain, records the release, and
    marks the app live.
 
@@ -87,10 +92,12 @@ and the platform probes it after each green deploy and then daily.)
 - `LICENSE` — MIT-0: template code is meant to be embedded in generated
   apps, attribution-free.
 
-Not in this repo, by design: `src/gateway/` and `wrangler.jsonc` (plus the
-root worker build inputs `package.json`/`package-lock.json`/`tsconfig.json`)
-are injected at build time from the platform's promoted `gateway.ref` —
-committing your own copies fails the config-integrity gate.
+Not in this repo, by design: anything under a root `src/` (the gateway is
+injected at build time and the platform owns that directory) and
+`wrangler.jsonc` (plus the root worker build inputs
+`package.json`/`package-lock.json`/`tsconfig.json`), all supplied at build
+time from the platform's promoted `gateway.ref`. Committing your own copies,
+or any file under `src/`, fails the config-integrity gate.
 
 ## Deployment-type scaffolds
 
@@ -110,6 +117,9 @@ Five files here are byte-mirrored into `inno-platform`'s CI fixtures
 `template-drift` CI job diffs the fixtures against this repo's `main` in
 **both directions** on every push and nightly — changing one side alone turns
 platform CI red. Land changes to these files in both repos together.
+`CLAUDE.md` has a third copy: a platform unit test pins
+`ci/fixtures/good-app/CLAUDE.md` byte-identical to the template fixture, so a
+`CLAUDE.md` change touches three files.
 
 Platform internals — the gateway source, deploy broker, Cloudflare/Okta/
 GitHub-App setup, and the OPERATIONS runbook that documents how to rebuild
