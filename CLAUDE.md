@@ -129,16 +129,18 @@ except NotConnected as e:
 Connections are configured by the app's owner with the `set_app_connection`
 MCP tool (or the panel's Connections tab). Availability today (contract
 §2.2): the seam is live for **mcp-container** apps; the sso-`container`
-gateway does not carry it yet (the call answers 501), and function-shaped
-apps have no `storage.internal` at all. The helper ships in both clients now
-so container apps are ready as availability widens.
+gateway binds `PLATFORM` but carries no caller assertion, so the platform
+answers 400 `bad_request` (the 501 comes only from a gateway deployed from an
+old config), and function-shaped apps have no `storage.internal` at all. The
+helper ships in both clients now so container apps are ready as availability
+widens.
 
 ## Container contract
 
 The container must adhere to these requirements:
 
 1. **Listen on port 8080** — The gateway forwards all traffic to this port.
-2. **Serve `/healthz` endpoint** — Return HTTP 200 if healthy, cheap and storage-independent. Two platform checks bind to it (contract R2): CI's smoke gate (the built image must answer within 90s of `docker run`) and the runtime health probe, fired after each green deploy and then daily — failures notify the owner and surface in the panel's Health column.
+2. **Serve `/healthz` endpoint.** Return HTTP 200 if healthy, cheap and storage-independent. Two platform checks bind to it (contract R2): CI's smoke gate (the built image must answer within 90s of `docker run`) and the runtime health probe, fired after each green deploy and then every `health.probe_interval_hours` hours (24 by default): failures notify the owner and surface in the panel's Health column.
 3. **Run as non-root** — The Dockerfile must create a non-root user and switch to it before running your app. The reference Dockerfile uses `useradd -m appuser && USER appuser`.
 4. **Graceful shutdown** — The container will receive SIGTERM; handle it cleanly.
 
