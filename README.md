@@ -47,9 +47,11 @@ mock identity by passing the `X-Forwarded-*` headers yourself:
 
 ```bash
 curl -H 'X-Forwarded-User: alice@example.com' \
-     -H 'X-Forwarded-Groups: inno-myapp-users' \
+     -H 'X-Forwarded-Groups: <members group>' \
      http://localhost:8080/
 ```
+
+`<members group>` is your app's members group (`get_platform_status` names it under App groups).
 
 To exercise the real gateway and storage, push to `main`: CI runs the full
 gate suite as your safety preflight before any tag deploys. See `CLAUDE.md`
@@ -68,7 +70,7 @@ tagging a `v*` release is what deploys.
    a GitHub OIDC token with the platform's deploy broker for a short-lived
    Cloudflare token, pushes the exact container image the gates just scanned
    (pinned by digest), and deploys the gateway Worker in front of it.
-3. The broker attaches your `inno-{app}` domain, records the release, and
+3. The broker attaches your app's domain, records the release, and
    marks the app live.
 
 Your D1/R2 storage was provisioned at `register_app` time and is wired via the
@@ -130,4 +132,4 @@ platform CI red. Land changes to these files in both repos together.
 Platform internals — the gateway source, deploy broker, Cloudflare/Okta/
 GitHub-App setup, and the OPERATIONS runbook that documents how to rebuild
 the whole environment from scratch — live in the `inno-platform` repo. The
-public reusable CI workflow apps call is mirrored to `inno-platform-ci`.
+public reusable CI workflow apps call is published by the platform (its CI workflow in `get_platform_status`).

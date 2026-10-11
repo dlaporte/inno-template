@@ -3,8 +3,8 @@
 An mcp-function-type app on the Innovation Platform: your code in `app/index.ts` runs as
 its own Cloudflare Worker — a Model Context Protocol (MCP) server — behind the
 platform's OAuth identity gateway. MCP clients (Claude Code, claude.ai) reach it
-at `https://inno-{app}.<platform-domain>/mcp` (the exact URL is shown by
-`register_app`, the first-deploy notification, and the panel).
+at `https://<app host>/mcp` (the exact URL is shown by
+`register_app`, the first-deploy notification, and the panel; `get_platform_status`'s App host pattern gives the host).
 
 ## Developing
 

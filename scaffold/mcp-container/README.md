@@ -3,8 +3,8 @@
 An mcp-container-type app on the Innovation Platform: your code in `app/main.py` runs
 in a container, a Model Context Protocol (MCP) server, behind the platform's OAuth
 identity gateway. MCP clients (Claude Code, claude.ai) reach it at
-`https://inno-{app}.<platform-domain>/mcp` (the exact URL is shown by
-`register_app`, the first-deploy notification, and the panel).
+`https://<app host>/mcp` (the exact URL is shown by
+`register_app`, the first-deploy notification, and the panel; `get_platform_status`'s App host pattern gives the host, and `<members group>` is your app's members group under App groups).
 
 ## Developing
 
@@ -36,7 +36,7 @@ curl -X POST http://localhost:8080/mcp \
      -H 'Content-Type: application/json' \
      -H 'Accept: application/json, text/event-stream' \
      -H 'X-Forwarded-User: alice@example.com' \
-     -H 'X-Forwarded-Groups: inno-myapp-users' \
+     -H 'X-Forwarded-Groups: <members group>' \
      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
 ```
 
