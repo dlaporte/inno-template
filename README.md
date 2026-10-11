@@ -88,10 +88,12 @@ and the platform probes it after each green deploy and then daily.)
 - `Dockerfile` — Container image definition.
 - `CLAUDE.md` — Platform constraints and best practices (its five `##`
   section headers are CI-enforced — rewrite the body, keep the headers).
-- `.github/workflows/deploy.yml` — thin caller of the platform's reusable CI
-  workflow; all gates and the deploy step live platform-side.
 - `LICENSE` — MIT-0: template code is meant to be embedded in generated
   apps, attribution-free.
+
+The template carries no `.github/workflows/deploy.yml`: the platform hands you
+the exact one for your instance in `register_app`'s second call, and the
+plugin's `inno-new-app` skill writes it into your repo.
 
 Not in this repo, by design: anything under a root `src/` (the gateway is
 injected at build time and the platform owns that directory) and

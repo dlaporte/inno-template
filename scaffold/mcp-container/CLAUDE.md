@@ -31,7 +31,8 @@ headers on every forwarded request:
 
 - `X-Forwarded-User`: the user's email (e.g. `alice@example.com`)
 - `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
-  `inno-<app>-users` for a member, `inno-<app>-open` while the app is open to
+  your app's members group (`get_platform_status` names it under App
+  groups) for a member, its open group while the app is open to
   everyone. It never names the admin group or another app's groups. On an open
   app it can be empty for a non-member who was just admitted: treat that as
   "not a member".

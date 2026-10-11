@@ -19,7 +19,7 @@ Your code and its dependencies live entirely under `app/`. If you need npm packa
 The gateway has already verified the user and injects spoof-proof headers:
 
 - `X-Forwarded-User`: the user's email (e.g. `alice@example.com`)
-- `X-Forwarded-Groups`: comma-separated, and only this app's own groups: `inno-<app>-users` when the caller is a member, `inno-<app>-open` while the app is open to everyone. Nothing else (no admin group, no other app's groups), so finer roles need your own store keyed on `X-Forwarded-User`. An app last deployed before the platform v0.14.3 gateway still receives its other groups until its next deploy.
+- `X-Forwarded-Groups`: comma-separated, and only this app's own groups: your app's members group (`get_platform_status` names it under App groups) when the caller is a member, its open group while the app is open to everyone. Nothing else (no admin group, no other app's groups), so finer roles need your own store keyed on `X-Forwarded-User`. An app last deployed before the platform v0.14.3 gateway still receives its other groups until its next deploy.
 - `X-Forwarded-Host`, `X-Forwarded-Proto` and `X-Forwarded-For` are also gateway-set; every other header (including `X-Real-IP`) is caller-controlled.
 
 ```ts

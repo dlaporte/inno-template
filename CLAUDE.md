@@ -28,7 +28,7 @@ Read `app/main.py` to see the reference implementation. The container is built f
 The gateway has already verified the user. The container receives authenticated requests with the user's identity in headers:
 
 - `X-Forwarded-User`: User's email (e.g., `alice@example.com`)
-- `X-Forwarded-Groups`: this app's own groups and nothing else, comma-separated (e.g., `inno-app-name-users,inno-app-name-open`). It carries `inno-<app>-users` when the caller is a member and `inno-<app>-open` while the app is open to everyone. It never names the platform admin group or any other app's groups, so a finer in-app role needs your own role store keyed on `X-Forwarded-User`. This narrowing reaches a `container` app with its next deploy on the platform v0.14.3 gateway (one deployed earlier still receives its other groups until then) and applies to an `mcp-container` app already. (On an open `mcp-container` app it can be empty for a non-member who was just admitted: treat that as "not a member".)
+- `X-Forwarded-Groups`: this app's own groups and nothing else, comma-separated. It carries your app's members group (`get_platform_status` names it under App groups) when the caller is a member, and its open group while the app is open to everyone. It never names the platform admin group or any other app's groups, so a finer in-app role needs your own role store keyed on `X-Forwarded-User`. This narrowing reaches a `container` app with its next deploy on the platform v0.14.3 gateway (one deployed earlier still receives its other groups until then) and applies to an `mcp-container` app already. (On an open `mcp-container` app it can be empty for a non-member who was just admitted: treat that as "not a member".)
 
 The gateway also sets `X-Forwarded-Host` (the hostname the request arrived on), `X-Forwarded-Proto` (always `https`) and `X-Forwarded-For` (the client address from Cloudflare's edge, absent when unknown), deletes `Forwarded`, and drops the Cloudflare Access cookies. Every other header, including `X-Real-IP`, `True-Client-IP` and `X-Forwarded-Port`, is whatever the client sent: never use one for identity or an access decision.
 
@@ -62,7 +62,7 @@ Replace `{ACCESS_TEAM_DOMAIN}` with the team domain emitted by the platform MCP'
 
 In local dev there is no gateway in front of the container (see the README's "Running Locally"), so nothing strips identity headers — mock a user by passing them directly to your app:
 - Pass `-H 'X-Forwarded-User: alice@example.com'` to set the user.
-- Pass `-H 'X-Forwarded-Groups: inno-<app>-users'` to set groups.
+- Pass `-H 'X-Forwarded-Groups: <your app's members group>'` to set groups.
 
 ## Persistence (use the storage client)
 
