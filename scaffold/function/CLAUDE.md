@@ -10,7 +10,7 @@ This is a function-type application: your app is its OWN Cloudflare Worker runni
 - **Your Worker**: `app/index.ts`, a standard Worker module (`export default { fetch }`). Deployed with `workers_dev: false` and no route — only the gateway can reach it.
 - **Storage**: your app's own D1 and R2 arrive as bindings (`env.DATA`, `env.FILES`).
 
-Your code and its dependencies live entirely under `app/`. If you need npm packages, add `app/package.json`, run `npm install` inside `app/`, and commit the generated `app/package-lock.json` with it: the release deploy runs `npm ci` and fails without a committed lockfile that matches `app/package.json` (a push to main does not reliably catch this). Declare every package you import in `app/package.json` itself; nothing is installed at the repo root. A ROOT package.json is rejected by CI; the platform injects the root build inputs.
+Your code and its dependencies live entirely under `app/`. If you need npm packages, add `app/package.json`, run `npm install` inside `app/`, and commit the generated `app/package-lock.json` with it: CI's `app-deps` job installs from that lockfile with `npm ci --ignore-scripts --omit=dev` on every push to your default branch, so a missing lockfile, or one that does not match `app/package.json`, fails the push, not only the release. Declare every package your Worker imports at runtime under `dependencies` in `app/package.json` itself: `devDependencies` are neither installed nor audited, and nothing is installed at the repo root. A ROOT package.json is rejected by CI; the platform injects the root build inputs.
 
 ## Identity (do not build auth)
 
@@ -25,6 +25,8 @@ The gateway has already verified the user and injects spoof-proof headers:
 ```ts
 const user = request.headers.get("X-Forwarded-User");
 ```
+
+**Sign out** is one link, with no session code: put `<a href="https://{ACCESS_TEAM_DOMAIN}/cdn-cgi/access/logout">Sign out</a>` in your layout (a footer is fine), with `{ACCESS_TEAM_DOMAIN}` replaced by the team domain in the "Sign-out URL" line of the platform MCP's `get_platform_status`. It must be the *team* domain: `/cdn-cgi/access/logout` on this app's own hostname clears only one app's cookie, which the live Access session silently re-issues. The team-domain logout ends the Access session for every platform app.
 
 ## Persistence (use your bindings)
 
@@ -44,4 +46,4 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the whole repository except the platform-owned root `src/` and semgrep's default-ignored directories (`test/`, `tests/`, `build/`, `dist/`, `vendor/`, `node_modules/`, at any depth), so `.github/workflows/deploy.yml` is scanned too), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Function-type apps skip the Docker build/Trivy/healthz-smoke image gates (there is no image). The release deploy additionally requires a committed `app/package-lock.json` whenever `app/package.json` exists.
+Every push to main runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the whole repository except the platform-owned root `src/` and semgrep's default-ignored directories (`test/`, `tests/`, `build/`, `dist/`, `vendor/`, `node_modules/`, at any depth), so `.github/workflows/deploy.yml` is scanned too), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Function-type apps skip the Docker build/Trivy/healthz-smoke image gates (there is no image). Whenever `app/package.json` exists, every push also needs a committed `app/package-lock.json` that matches it: the `app-deps` job installs from it and fails without it.

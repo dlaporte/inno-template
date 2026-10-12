@@ -33,9 +33,12 @@ headers on every forwarded request:
 - `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
   your app's members group (`get_platform_status` names it under App
   groups) for a member, its open group while the app is open to
-  everyone. It never names the admin group or another app's groups. On an open
-  app it can be empty for a non-member who was just admitted: treat that as
-  "not a member".
+  everyone. It never names the admin group or another app's groups. Admission
+  is decided before the header is written, not from it, and every person an
+  app admits carries at least one of the two. Both are decided at each
+  request, from the platform's member list for the app and the app's open
+  flag, so a grant, a revoke or a change to open access reaches the header
+  within the gateway's introspection cache (60 seconds at most).
 
 In a tool, take `ctx: Context` and call `current_user(ctx.request_context.request)`
 from `storage.py`, as `whoami` does. Authorize by user, or by membership versus
@@ -59,7 +62,7 @@ are live for this type: pass the inbound `X-Caller-Assertion` through, never dec
 ```python
 try:
     cred = await Connections().get("servicenow", ctx.request_context.request.headers.get("x-caller-assertion"))
-except ConnectionLocked:  # catch first (a NotConnected subclass): reconnect the MCP client
+except ConnectionLocked:  # catch first (a NotConnected subclass): the user re-authorizes the MCP client
     ...
 except NotConnected as e:  # relay e.connect_url to the user verbatim
     ...
@@ -75,7 +78,8 @@ except NotConnected as e:  # relay e.connect_url to the user verbatim
   An idle container sleeps (`container.sleep_after`, default 10 minutes) and wakes
   on the next request, so the first call after idle is slower.
 - `GET /healthz` must return 200 without touching storage (R2): CI's smoke gate
-  wants it within 90s of `docker run`, and the platform probes it after deploy and daily.
+  wants it within 90s of `docker run`, and the platform probes it after each green
+  deploy and then every `health.probe_interval_hours` hours (24 by default).
 - `POST /mcp` is your MCP endpoint. **Stateless only** (`stateless_http=True`).
   This is a platform requirement, not a preference: there is no session store, so
   **server-initiated** MCP features do not work: no notifications, sampling,
@@ -101,6 +105,8 @@ whole repository except the platform-owned root `src/` and semgrep's
 default-ignored directories: `test/`, `tests/`, `build/`, `dist/`, `vendor/`,
 `node_modules/`, at any depth; `.semgrepignore` and `# nosemgrep` are not honored),
 pip-audit (`app/requirements.txt`), the container gates (`EXPOSE 8080`, non-root
-`USER`, `/healthz` smoke test, Trivy HIGH/CRITICAL on the image that deploys),
-config-integrity (this file's headers, no shadow configs), and release-age cooldown.
+`USER`, `/healthz` smoke test, Trivy HIGH/CRITICAL with a fix available on the
+image that deploys), config-integrity (this file's headers, no shadow configs), and
+release-age cooldown. The container job also writes an advisory Dockerfile
+misconfiguration report (`trivy config`) to the Actions run; it never fails the build.
 Deploys are skipped while `app/.needs-build` exists: delete it once real code lands.

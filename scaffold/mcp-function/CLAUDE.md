@@ -22,12 +22,13 @@ and no Dockerfile — CI skips the image gates for mcp-function-type apps.
 Your code and its dependencies live entirely under `app/`. MCP servers need npm
 packages, so this scaffold ships an `app/package.json` (the MCP SDK + zod) AND an
 `app/package-lock.json`. Add packages with `npm install <pkg>` inside `app/` and
-commit both files together: the release deploy runs `npm ci` and fails if the
-lockfile is missing or out of step (a push to main does not reliably catch that), the
-lockfile is what lets the release-age gate date your dependencies, and every
-package you import must be declared here because nothing is installed at the
-repo root. A ROOT package.json is rejected by CI; the platform injects the root
-build inputs.
+commit both files together: CI's `app-deps` job installs from the lockfile with
+`npm ci --ignore-scripts --omit=dev` on every push to your default branch, so a
+missing or stale lockfile fails the push, not only the release. The lockfile is
+also what lets the release-age gate date your dependencies. Declare every package
+your Worker imports at runtime under `dependencies`: `devDependencies` are neither
+installed nor audited, and nothing is installed at the repo root. A ROOT
+package.json is rejected by CI; the platform injects the root build inputs.
 
 ## Identity (do not build auth)
 
@@ -41,9 +42,12 @@ spoof-proof headers on every forwarded request:
   your app's members group (`get_platform_status` names it under App
   groups) for a member, its open group while the app is open to
   everyone. It never names the admin group or another app's groups, and that
-  holds for every MCP app already, whatever gateway it last deployed on. On an open
-  app it can be empty for a non-member who was just admitted: treat that as
-  "not a member".
+  holds for every MCP app already, whatever gateway it last deployed on.
+  Admission is decided before the header is written, not from it, and every
+  person an app admits carries at least one of the two. Both are decided at
+  each request, from the platform's member list for the app and the app's
+  open flag, so a grant, a revoke or a change to open access reaches the
+  header within the gateway's introspection cache (60 seconds at most).
 
 ```ts
 const user = request.headers.get("X-Forwarded-User");
@@ -63,6 +67,10 @@ container path's `http://storage.internal` client:
 - `env.FILES` — your R2 bucket: `await env.FILES.put(key, body)` / `await env.FILES.get(key)`
 
 Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-independent.
+
+Connections (per-user backend credentials, contract §2.2) are not available to
+this type: an mcp-function app has no `storage.internal`, so it cannot reach the
+Connections seam. An MCP server that needs them must be the mcp-container type.
 
 ## Function contract
 
