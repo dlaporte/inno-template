@@ -16,8 +16,8 @@ and the `## Function contract` section of `CLAUDE.md`.
 This scaffold ships `app/package.json` with the MCP SDK and zod, plus
 `app/package-lock.json`. Add more npm packages with `npm install <pkg>` inside
 `app/` and commit both files (never a root package.json; the platform injects the
-root build inputs at deploy time). A release fails if the committed lockfile is
-missing or out of step.
+root build inputs at deploy time). Every push to main fails if the committed
+lockfile is missing or out of step, not only a release.
 
 ## Running locally
 

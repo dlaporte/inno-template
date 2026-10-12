@@ -15,10 +15,12 @@ A template for building container-based applications on the Innovation Platform.
    access to it, skip the link), then call `register_app` again with the same
    arguments to finish. The second call refuses with `repo_control_unproven`
    until the file is on the default branch. Registration prunes the template
-   to your chosen deployment type and provisions the app (Okta group, Access,
-   D1, R2). (The `register_app` / `get_app_contract` / `get_platform_status`
-   tools come from the platform's `innovation-platform` plugin; see the
-   `inno-platform` repo's USER-GUIDE for setup.)
+   to your chosen deployment type and provisions the app: its member list and
+   Okta group, D1, R2, and a Cloudflare Access application for the browser
+   types (`container`, `function`); the MCP types get none and authenticate
+   OAuth bearer tokens instead. (The `register_app` / `get_app_contract` /
+   `get_platform_status` tools come from the platform's `innovation-platform`
+   plugin; see the `inno-platform` repo's USER-GUIDE for setup.)
 3. Pull (or clone) your repository after the second call, which pushes the
    scaffold commit, and build your app: for the container type, start in
    `app/main.py` and the Dockerfile.
@@ -76,7 +78,8 @@ tagging a `v*` release is what deploys.
 Your D1/R2 storage was provisioned at `register_app` time and is wired via the
 gateway's storage endpoint. (`/healthz` is enforced twice: CI's container gate
 smoke-tests it — the built image must answer 200 within 90s of `docker run` —
-and the platform probes it after each green deploy and then daily.)
+and the platform probes it after each green deploy and then every
+`health.probe_interval_hours` hours, 24 by default.)
 
 ## What's in This Template
 
@@ -115,16 +118,20 @@ with a Worker; `scaffold/mcp-container/` keeps the container shape (the root
 the platform generates an app repo it prunes to exactly one, driven by the
 app's type: an overlay's files replace their root namesakes, and its
 `.scaffold-remove` lists what that variant deletes outright. Generated repos
-never contain `scaffold/`: CI rejects it as a leftover.
+never contain `scaffold/`: CI rejects it as a leftover once `app/.needs-build`
+is deleted, and tolerates it only while that marker is still present.
 
 ## Maintainer notes
 
-Five files here are byte-mirrored into `inno-platform`'s CI fixtures
+Seven files here are byte-mirrored into `inno-platform`'s CI fixtures
 (`ci/fixtures/template/`): `CLAUDE.md`, `Dockerfile`, `lib/storage.js`,
-`lib/storage.d.ts`, and `scaffold/function/CLAUDE.md`. The platform's
-`template-drift` CI job diffs the fixtures against this repo's `main` in
-**both directions** on every push and nightly — changing one side alone turns
-platform CI red. Land changes to these files in both repos together.
+`lib/storage.d.ts`, and the three overlay guides `scaffold/function/CLAUDE.md`,
+`scaffold/mcp-function/CLAUDE.md` and `scaffold/mcp-container/CLAUDE.md`. The
+platform's `template-drift` CI job diffs the fixtures against this repo's
+`main` in **both directions** on platform pushes, platform pull requests and a
+nightly schedule; a push to this repo does not run it. Changing one side alone
+turns platform CI red at its next run, so land changes to these files in both
+repos together.
 `CLAUDE.md` has a third copy: a platform unit test pins
 `ci/fixtures/good-app/CLAUDE.md` byte-identical to the template fixture, so a
 `CLAUDE.md` change touches three files.
