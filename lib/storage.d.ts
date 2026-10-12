@@ -8,6 +8,12 @@ export interface CurrentUserResult {
   groups: string[];
 }
 
+export interface FileListing {
+  keys: string[];
+  // true when the gateway stopped listing at its cap: `keys` is then partial.
+  truncated: boolean;
+}
+
 export class Storage {
   constructor(opts?: StorageOptions);
   query(sql: string, params?: unknown[]): Promise<unknown[]>;
@@ -16,7 +22,7 @@ export class Storage {
   executeLinked(sourceApp: string, sql: string, params?: unknown[]): Promise<unknown>;
   putFile(key: string, bytes: unknown): Promise<unknown>;
   getFile(key: string): Promise<Uint8Array | null>;
-  listFiles(): Promise<string[]>;
+  listFiles(): Promise<FileListing>;
   deleteFile(key: string): Promise<unknown>;
 }
 
@@ -41,8 +47,17 @@ export class Connections {
 export class NotConnected extends Error {
   constructor(connectUrl: string);
   connectUrl: string;
+  // The same value under the name APP-CONTRACT §2.2 and the Python client use.
+  connect_url: string;
 }
 
 export class ConnectionLocked extends NotConnected {
   constructor(connectUrl: string);
+}
+
+export class ConnectionsError extends Error {
+  constructor(status: number, code: string | null);
+  status: number;
+  // The answer's `error` code, or null when the body carried none.
+  code: string | null;
 }

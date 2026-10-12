@@ -48,10 +48,13 @@ class Storage:
         r.raise_for_status()
         return r.content
 
-    async def list_files(self) -> list:
+    # "truncated" is True when the gateway stopped listing at its cap (APP-CONTRACT R5):
+    # the keys are then a partial set, so track keys in D1 rather than walk the bucket.
+    async def list_files(self) -> dict:
         r = await self._request("GET", "/_storage/files")
         r.raise_for_status()
-        return r.json()["keys"]
+        out = r.json()
+        return {"keys": out["keys"], "truncated": out.get("truncated") is True}
 
     async def delete_file(self, key: str):
         r = await self._request("DELETE", f"/_storage/files/{quote(key, safe='')}")
@@ -76,7 +79,19 @@ class ConnectionLocked(NotConnected):
 
     def __init__(self, connect_url: str):
         super().__init__(connect_url)
-        self.args = (f"connection locked: reconnect your MCP client to this app (or open {connect_url} while signed in) and try again",)
+        self.args = ("connection locked: re-authorize this app in your MCP client (in Claude: /mcp, then re-authenticate it), then try again",)
+
+
+class ConnectionsError(Exception):
+    """A failed seam call: `status` is the HTTP status and `code` the answer's `error` code (None when the body carried none).
+
+    APP-CONTRACT §2.2 says which codes are the app's to fix and which mean retry later.
+    """
+
+    def __init__(self, status: int, code: str | None):
+        super().__init__(f"connections_error:{status}" + (f" {code}" if code else ""))
+        self.status = status
+        self.code = code
 
 
 # Per-user backend credentials (APP-CONTRACT §2.2). `caller_assertion` is the
@@ -96,7 +111,15 @@ class Connections:
         else:
             async with httpx.AsyncClient() as c:
                 r = await c.post(f"{self.base}/_connections/{name}", headers=headers)
-        r.raise_for_status()
+        if not r.is_success:
+            code = None
+            try:
+                body = r.json()
+                if isinstance(body, dict) and isinstance(body.get("error"), str):
+                    code = body["error"]
+            except ValueError:
+                pass
+            raise ConnectionsError(r.status_code, code)
         out = r.json()
         if out.get("status") == "not_connected":
             raise (ConnectionLocked if out.get("locked") else NotConnected)(out.get("connect_url"))
