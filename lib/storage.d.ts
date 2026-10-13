@@ -8,11 +8,9 @@ export interface CurrentUserResult {
   groups: string[];
 }
 
-export interface FileListing {
-  keys: string[];
-  // true when the gateway stopped listing at its cap: `keys` is then partial.
-  truncated: boolean;
-}
+// The keys, an ordinary array, plus `truncated`: true when the gateway stopped
+// listing at its cap, so the keys are only part of the bucket.
+export type FileListing = string[] & { truncated: boolean };
 
 export class Storage {
   constructor(opts?: StorageOptions);

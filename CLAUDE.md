@@ -94,10 +94,10 @@ stack calls the same HTTP endpoints directly (they are plain JSON/bytes over
 HTTP): `POST /_storage/sql/query` and `/_storage/sql/execute`
 (`{sql, params}`), `PUT/GET/DELETE /_storage/files/{key}`,
 `GET /_storage/files`. The listing call (`list_files()`, or `listFiles()` in
-JS) returns `{keys, truncated}`: `truncated` is true when the gateway stopped
-listing at its cap, so the keys are only part of the bucket; track keys in D1
-rather than walk a bucket that size. Whatever the stack: durable state lives
-HERE, never on the container's disk.
+JS) returns the list of keys, which also carries `truncated`: true when the
+gateway stopped listing at its cap, so the keys are only part of the bucket;
+track keys in D1 rather than walk a bucket that size. Whatever the stack:
+durable state lives HERE, never on the container's disk.
 
 ### Cross-app data links
 
@@ -139,8 +139,9 @@ a 501 comes only from a gateway deployed from an old config), and
 function-shaped apps have no `storage.internal` at all. The helper ships in
 both clients now so container apps are ready as availability widens. A
 failed seam call raises `ConnectionsError` carrying the HTTP `status` and the
-answer's `error` code: contract §2.2 says which codes are the app's to fix
-and which mean retry later or a platform admin.
+answer's `error` code as `code` (in Python it is an `httpx.HTTPStatusError`,
+as before): contract §2.2 says which codes are the app's to fix and which
+mean retry later or a platform admin.
 
 ## Container contract
 

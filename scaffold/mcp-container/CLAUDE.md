@@ -68,6 +68,11 @@ except NotConnected as e:  # relay e.connect_url to the user verbatim
     ...
 ```
 
+Any other failed seam call raises `ConnectionsError`, an `httpx.HTTPStatusError`
+carrying the HTTP `status` and the answer's `error` code as `code` (contract §2.2
+says which codes are yours to fix), and `Storage().list_files()` returns the list
+of keys with a `truncated` attribute, true when the gateway stopped listing at its cap.
+
 ## Container contract
 
 - Listen on `0.0.0.0:8080` with `EXPOSE 8080`, and run as a non-root `USER`

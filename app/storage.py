@@ -4,6 +4,17 @@ from urllib.parse import quote
 import httpx
 
 
+class FileList(list):
+    """The keys of a listing, an ordinary list, plus `truncated`.
+
+    `truncated` is True when the gateway stopped listing at its cap (APP-CONTRACT R5),
+    so the keys are only part of the bucket. Track keys in D1 rather than walk a
+    bucket that size.
+    """
+
+    truncated: bool = False
+
+
 class Storage:
     def __init__(self, base: str | None = None, client: httpx.AsyncClient | None = None):
         self.base = base or os.environ.get("INNO_STORAGE_BASE", "http://storage.internal")
@@ -48,13 +59,13 @@ class Storage:
         r.raise_for_status()
         return r.content
 
-    # "truncated" is True when the gateway stopped listing at its cap (APP-CONTRACT R5):
-    # the keys are then a partial set, so track keys in D1 rather than walk the bucket.
-    async def list_files(self) -> dict:
+    async def list_files(self) -> FileList:
         r = await self._request("GET", "/_storage/files")
         r.raise_for_status()
         out = r.json()
-        return {"keys": out["keys"], "truncated": out.get("truncated") is True}
+        keys = FileList(out["keys"])
+        keys.truncated = out.get("truncated") is True
+        return keys
 
     async def delete_file(self, key: str):
         r = await self._request("DELETE", f"/_storage/files/{quote(key, safe='')}")
@@ -82,23 +93,27 @@ class ConnectionLocked(NotConnected):
         self.args = ("connection locked: re-authorize this app in your MCP client (in Claude: /mcp, then re-authenticate it), then try again",)
 
 
-class ConnectionsError(Exception):
+class ConnectionsError(httpx.HTTPStatusError):
     """A failed seam call: `status` is the HTTP status and `code` the answer's `error` code (None when the body carried none).
 
     APP-CONTRACT §2.2 says which codes are the app's to fix and which mean retry later.
+    It is an httpx.HTTPStatusError, the error this call raised before the code was
+    kept, so an existing `except httpx.HTTPStatusError` still catches it.
     """
 
-    def __init__(self, status: int, code: str | None):
-        super().__init__(f"connections_error:{status}" + (f" {code}" if code else ""))
-        self.status = status
+    def __init__(self, response: httpx.Response, code: str | None):
+        super().__init__(f"connections_error:{response.status_code}", request=response.request, response=response)
+        self.status = response.status_code
         self.code = code
 
 
 # Per-user backend credentials (APP-CONTRACT §2.2). `caller_assertion` is the
-# value of THIS request's inbound X-Caller-Assertion header — the app must
+# value of THIS request's inbound X-Caller-Assertion header: the app must
 # echo it (identity rides only that platform-signed token). Returns a live
-# credential ({"access_token": ...} or {"header": ...}), or raises
-# NotConnected(connect_url) which the app relays to the user.
+# credential ({"access_token": ...} or {"header": ...}). Raises
+# NotConnected(connect_url), which the app relays to the user; ConnectionLocked,
+# a NotConnected the user fixes by re-authorizing the MCP client; or
+# ConnectionsError for any other failed seam call.
 class Connections:
     def __init__(self, base: str | None = None, client: httpx.AsyncClient | None = None):
         self.base = base or os.environ.get("INNO_STORAGE_BASE", "http://storage.internal")
@@ -119,7 +134,7 @@ class Connections:
                     code = body["error"]
             except ValueError:
                 pass
-            raise ConnectionsError(r.status_code, code)
+            raise ConnectionsError(r, code)
         out = r.json()
         if out.get("status") == "not_connected":
             raise (ConnectionLocked if out.get("locked") else NotConnected)(out.get("connect_url"))
