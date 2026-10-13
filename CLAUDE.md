@@ -139,8 +139,8 @@ a 501 comes only from a gateway deployed from an old config), and
 function-shaped apps have no `storage.internal` at all. The helper ships in
 both clients now so container apps are ready as availability widens. A
 failed seam call raises `ConnectionsError` carrying the HTTP `status` and the
-answer's `error` code as `code` (in Python it is an `httpx.HTTPStatusError`,
-as before): contract §2.2 says which codes are the app's to fix and which
+answer's `error` code as `code` (in Python it is also an
+`httpx.HTTPStatusError`): contract §2.2 says which codes are the app's to fix and which
 mean retry later or a platform admin.
 
 ## Container contract
