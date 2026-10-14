@@ -123,9 +123,9 @@ is deleted, and tolerates it only while that marker is still present.
 
 ## Maintainer notes
 
-Seven files here are byte-mirrored into `inno-platform`'s CI fixtures
+Eight files here are byte-mirrored into `inno-platform`'s CI fixtures
 (`ci/fixtures/template/`): `CLAUDE.md`, `Dockerfile`, `lib/storage.js`,
-`lib/storage.d.ts`, and the three overlay guides `scaffold/function/CLAUDE.md`,
+`lib/storage.d.ts`, `app/storage.py`, and the three overlay guides `scaffold/function/CLAUDE.md`,
 `scaffold/mcp-function/CLAUDE.md` and `scaffold/mcp-container/CLAUDE.md`. The
 platform's `template-drift` CI job diffs the fixtures against this repo's
 `main` in **both directions** on platform pushes, platform pull requests and a
