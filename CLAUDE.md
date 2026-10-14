@@ -142,7 +142,7 @@ failed seam call raises `ConnectionsError` carrying the HTTP `status` and the
 answer's `error` code as `code` (in Python it is also an
 `httpx.HTTPStatusError`): contract §2.2 says which codes are the app's to fix and which
 mean retry later or a platform admin.
-A failed seam call's `str(e)` is `connections_error:<status>`, so read `e.status` and `e.code`.
+A failed seam call's error message is `connections_error:<status>`, so read the error's `status` and `code` fields.
 
 ## Container contract
 
