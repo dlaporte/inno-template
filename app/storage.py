@@ -81,7 +81,7 @@ def current_user(request) -> dict:
 
 class NotConnected(Exception):
     def __init__(self, connect_url: str):
-        super().__init__(f"not connected — open {connect_url} to link your account")
+        super().__init__(f"not connected: open {connect_url} to link your account")
         self.connect_url = connect_url
 
 
