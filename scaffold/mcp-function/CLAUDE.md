@@ -10,12 +10,12 @@ OAuth instead of a browser login. The platform's gateway sits in front as an OAu
 2.1 Resource Server: it verifies the caller's platform-issued bearer token (minted
 by the platform's Authorization Server, audience-bound to THIS app) and forwards
 the request to your Worker with spoof-proof identity headers. There is no container
-and no Dockerfile — CI skips the image gates for mcp-function-type apps.
+and no Dockerfile; CI skips the image gates for mcp-function-type apps.
 
-- **Gateway**: platform-owned, injected at deploy time — never edit or vendor it.
+- **Gateway**: platform-owned, injected at deploy time; never edit or vendor it.
   It is the OAuth boundary; your Worker never sees or parses a token.
 - **Your Worker**: `app/index.ts`, a standard Worker module (`export default { fetch }`)
-  serving `POST /mcp`. Deployed with `workers_dev: false` and no route — only the
+  serving `POST /mcp`. Deployed with `workers_dev: false` and no route; only the
   gateway can reach it.
 - **Storage**: your app's own D1 and R2 arrive as bindings (`env.DATA`, `env.FILES`).
 
@@ -60,11 +60,11 @@ identity.
 
 ## Persistence (use your bindings)
 
-Mcp-function-type apps use their provisioned storage directly as bindings — not the
+Mcp-function-type apps use their provisioned storage directly as bindings, not the
 container path's `http://storage.internal` client:
 
-- `env.DATA` — your D1 (SQLite) database: `await env.DATA.prepare("SELECT ...").bind(x).all()`
-- `env.FILES` — your R2 bucket: `await env.FILES.put(key, body)` / `await env.FILES.get(key)`
+- `env.DATA`: your D1 (SQLite) database, e.g. `await env.DATA.prepare("SELECT ...").bind(x).all()`
+- `env.FILES`: your R2 bucket: `await env.FILES.put(key, body)` / `await env.FILES.get(key)`
 
 Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-independent.
 
@@ -75,22 +75,22 @@ Connections seam. An MCP server that needs them must be the mcp-container type.
 ## Function contract
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
-- `POST /mcp` is your MCP endpoint. **Stateless only** — construct the transport
+- `POST /mcp` is your MCP endpoint. **Stateless only**: construct the transport
   WITHOUT a `sessionIdGenerator` (a fresh transport + `McpServer` per request, as
   the scaffold does). This is a platform requirement, not a preference: there is
-  no session store, so **server-initiated** MCP features do not work — no
+  no session store, so **server-initiated** MCP features do not work: no
   notifications, sampling, elicitation, long-lived subscriptions, or SSE
   resumability. If your app genuinely needs those, it does not fit this type
   today. Non-POST methods on `/mcp` get a 405 (a stateless server has nothing to
   stream on GET and no session for DELETE to end).
-- `GET /healthz` must return 200 without touching storage — the platform probes it
+- `GET /healthz` must return 200 without touching storage; the platform probes it
   after deploy and on schedule.
 - Do not implement or route `/.well-known/oauth-protected-resource` (or its
-  path-inserted `…/mcp` variant) — the platform's gateway serves both, and they
+  path-inserted `…/mcp` variant); the platform's gateway serves both, and they
   are part of the OAuth boundary you must not touch.
 - Register tools with `server.registerTool(name, { title, description, inputSchema }, handler)`;
   declare tool inputs as a zod raw shape (see `echo` in `app/index.ts`). Return
-  results as MCP content (`{ content: [{ type: "text", text }] }`) — not HTML.
+  results as MCP content (`{ content: [{ type: "text", text }] }`), not HTML.
 - Do not add: anything under a root `src/` (the platform owns that directory), a
   root `package.json`, `package-lock.json` or `tsconfig.json`, any `wrangler.*`
   config or `.wrangler/` directory, root `.env` files, root package manager config

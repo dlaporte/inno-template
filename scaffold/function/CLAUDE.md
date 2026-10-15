@@ -4,10 +4,10 @@ This template guides you to build a secure app as a Cloudflare Worker on the Inn
 
 ## Innovation Platform App
 
-This is a function-type application: your app is its OWN Cloudflare Worker running behind the platform's gateway. The gateway handles identity verification and request routing; your Worker receives already-authenticated requests. There is no container and no Dockerfile — CI skips the image gates for function-type apps.
+This is a function-type application: your app is its OWN Cloudflare Worker running behind the platform's gateway. The gateway handles identity verification and request routing; your Worker receives already-authenticated requests. There is no container and no Dockerfile; CI skips the image gates for function-type apps.
 
-- **Gateway**: platform-owned, injected at deploy time — never edit or vendor it.
-- **Your Worker**: `app/index.ts`, a standard Worker module (`export default { fetch }`). Deployed with `workers_dev: false` and no route — only the gateway can reach it.
+- **Gateway**: platform-owned, injected at deploy time; never edit or vendor it.
+- **Your Worker**: `app/index.ts`, a standard Worker module (`export default { fetch }`). Deployed with `workers_dev: false` and no route; only the gateway can reach it.
 - **Storage**: your app's own D1 and R2 arrive as bindings (`env.DATA`, `env.FILES`).
 
 Your code and its dependencies live entirely under `app/`. If you need npm packages, add `app/package.json`, run `npm install` inside `app/`, and commit the generated `app/package-lock.json` with it: CI's `app-deps` job installs from that lockfile with `npm ci --ignore-scripts --omit=dev` on every push to your default branch, so a missing lockfile, or one that does not match `app/package.json`, fails the push, not only the release. Declare every package your Worker imports at runtime under `dependencies` in `app/package.json` itself: `devDependencies` are neither installed nor audited, and nothing is installed at the repo root. A ROOT package.json is rejected by CI; the platform injects the root build inputs.
@@ -30,18 +30,18 @@ const user = request.headers.get("X-Forwarded-User");
 
 ## Persistence (use your bindings)
 
-Function-type apps use their provisioned storage directly as bindings — not the container path's `http://storage.internal` client:
+Function-type apps use their provisioned storage directly as bindings, not the container path's `http://storage.internal` client:
 
-- `env.DATA` — your D1 (SQLite) database: `await env.DATA.prepare("SELECT ...").bind(x).all()`
-- `env.FILES` — your R2 bucket: `await env.FILES.put(key, body)` / `await env.FILES.get(key)`
+- `env.DATA`: your D1 (SQLite) database, e.g. `await env.DATA.prepare("SELECT ...").bind(x).all()`
+- `env.FILES`: your R2 bucket: `await env.FILES.put(key, body)` / `await env.FILES.get(key)`
 
 Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-independent.
 
 ## Function contract
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
-- `GET /healthz` must return 200 without touching storage — the platform probes it after deploy and on schedule.
-- Never interpolate user data into hand-built HTML — even escaped; the SAST gate blocks it. Return dynamic data as JSON (like the scaffold's /me) or render through an auto-escaping template library; keep hand-written HTML fully static.
+- `GET /healthz` must return 200 without touching storage; the platform probes it after deploy and on schedule.
+- Never interpolate user data into hand-built HTML, even escaped; the SAST gate blocks it. Return dynamic data as JSON (like the scaffold's /me) or render through an auto-escaping template library; keep hand-written HTML fully static.
 - Do not add: anything under a root `src/` (the platform owns that directory), a root `package.json`, `package-lock.json` or `tsconfig.json`, any `wrangler.*` config or `.wrangler/` directory, root `.env` files, root package manager config (`.yarnrc`, `.yarnrc.yml`, `.pnpmfile.cjs`, `pnpm-workspace.yaml`, `bunfig.toml`), or a `.npmrc` anywhere, `app/.npmrc` included. The platform injects all deploy configuration from the promoted gateway ref, and CI rejects shadow copies.
 
 ## What CI enforces

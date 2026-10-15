@@ -1,4 +1,4 @@
-# REFERENCE IMPLEMENTATION (Python — the platform's tested stack). Replace
+# REFERENCE IMPLEMENTATION (Python: the platform's tested stack). Replace
 # this Dockerfile wholesale for any other stack; the contract it must meet is
 # the same for every language (fetch the get_app_contract MCP tool for the
 # full contract and the CURRENT digest-pinned recommended base images):
