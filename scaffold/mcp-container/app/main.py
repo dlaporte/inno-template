@@ -1,8 +1,7 @@
 # REFERENCE IMPLEMENTATION (Python, FastMCP) for an mcp-container-type app. It
 # runs in the container the root Dockerfile builds. In front of it runs the
-# platform's gateway, which has ALREADY verified the caller's OAuth bearer
-# token and injected spoof-proof identity headers: never build auth here (see
-# CLAUDE.md).
+# platform's gateway, which decides who reaches the app and names the caller in
+# spoof-proof identity headers: never build auth here (see CLAUDE.md).
 #
 # This is a STATELESS Streamable HTTP MCP server: no session store, no state
 # carried from one request to the next. Stateless is the ONLY mode this
@@ -44,13 +43,16 @@ async def healthz(request: Request) -> JSONResponse:
 
 # A read-only tool with NO inputs: reports who the platform says you are. `ctx`
 # is injected by FastMCP (it is not a tool argument), and its request carries
-# the gateway's identity headers; current_user reads them.
+# the gateway's identity headers; current_user reads them and answers None when
+# there are none.
 @mcp.tool()
 async def whoami(ctx: Context) -> str:
-    """Return the platform-verified caller identity (email + groups)."""
+    """Return the caller identity the platform reports (email, groups, member)."""
     user = current_user(ctx.request_context.request)
+    if user is None:
+        return "You are not signed in."
     groups = f"; groups: {', '.join(user['groups'])}" if user["groups"] else "; no groups"
-    return f"You are {user['email'] or '(unknown)'}{groups}."
+    return f"You are {user['email']}{groups}; {'a member' if user['member'] else 'not a member'}."
 
 
 # A tool WITH an input: the signature is the input schema (type hints become

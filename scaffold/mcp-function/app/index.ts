@@ -1,12 +1,12 @@
 // REFERENCE IMPLEMENTATION (TypeScript Worker) for an mcp-function-type app. Your whole
 // app lives in app/; this file is the module the platform deploys as your app
-// Worker. In front of it runs the platform's gateway, which has ALREADY verified
-// the caller's OAuth bearer token and injected spoof-proof identity headers —
-// never build auth here (see CLAUDE.md).
+// Worker. In front of it runs the platform's gateway, which decides who reaches
+// the app and names the caller in spoof-proof identity headers; never build
+// auth here (see CLAUDE.md).
 //
 // This is a STATELESS Streamable-HTTP MCP server: a fresh transport + server per
 // request, with no session store. Stateless is the ONLY mode this platform
-// supports (see CLAUDE.md — server-initiated MCP features are unavailable), and
+// supports (see CLAUDE.md: server-initiated MCP features are unavailable), and
 // it works with every MCP client's tool calls.
 //
 // Contract highlights (see CLAUDE.md for the full version):
@@ -19,6 +19,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
+import { currentUser, type CurrentUserResult } from "./identity";
 
 interface Env {
   DATA: D1Database;   // the app's own D1 database
@@ -26,26 +27,31 @@ interface Env {
   ENVIRONMENT: string;
 }
 
-// Build a fresh MCP server for a single request, closing over the caller's
-// gateway-verified identity so tools can authorize by user/group. Register your
-// tools here; `_env` is threaded through so a tool can use env.DATA / env.FILES
-// the moment you need them (rename it to `env` when you do).
-function buildServer(user: string, groups: string[], _env: Env): McpServer {
+// Build a fresh MCP server for a single request, closing over the caller the
+// gateway named in the identity headers (null when there is none) so tools can
+// decide per request what that caller may do. An MCP app refuses with a tool
+// result marked `isError: true` (or a JSON-RPC error), never with an HTTP
+// status: an HTTP error is a transport failure, and the model never sees why.
+// Register your tools here; `_env` is threaded through so a tool can use
+// env.DATA / env.FILES the moment you need them (rename it to `env` when you do).
+function buildServer(caller: CurrentUserResult | null, _env: Env): McpServer {
   const server = new McpServer({ name: "inno-mcp-app", version: "0.1.0" });
 
   // A read-only tool with NO inputs: reports who the platform says you are. The
-  // identity is injected by the gateway — the app never authenticates anyone.
+  // identity headers come from the gateway; the app never authenticates anyone.
   server.registerTool(
     "whoami",
     {
       title: "Who am I",
-      description: "Return the platform-verified caller identity (email + groups).",
+      description: "Return the caller identity the platform reports (email, groups, member).",
       inputSchema: {},
     },
     async () => ({
       content: [{
         type: "text",
-        text: `You are ${user || "(unknown)"}${groups.length ? `; groups: ${groups.join(", ")}` : "; no groups"}.`,
+        text: caller
+          ? `You are ${caller.email}${caller.groups.length ? `; groups: ${caller.groups.join(", ")}` : "; no groups"}; ${caller.member ? "a member" : "not a member"}.`
+          : "You are not signed in.",
       }],
     }),
   );
@@ -56,7 +62,7 @@ function buildServer(user: string, groups: string[], _env: Env): McpServer {
     "echo",
     {
       title: "Echo",
-      description: "Echo a message back — a template for input-validated tools.",
+      description: "Echo a message back: a template for input-validated tools.",
       inputSchema: { message: z.string().describe("Text to echo back.") },
     },
     async ({ message }) => ({
@@ -80,20 +86,19 @@ export default {
     if (url.pathname === "/mcp") {
       // POST only. A stateless server has nothing to stream on GET (the SDK
       // would hold a structurally-always-empty SSE stream open, burning a
-      // Worker invocation) and no session for DELETE to end — the MCP spec
+      // Worker invocation) and no session for DELETE to end; the MCP spec
       // allows 405 for both.
       if (request.method !== "POST") {
         return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
       }
-      // Identity: spoof-proof headers the gateway injected after verifying the
-      // caller's OAuth bearer token. Trust these; never parse a token yourself.
-      const user = request.headers.get("X-Forwarded-User") ?? "";
-      const groups = (request.headers.get("X-Forwarded-Groups") ?? "")
-        .split(",").map((s) => s.trim()).filter(Boolean);
+      // Identity: spoof-proof headers the gateway sets for the caller it let
+      // through (all empty for an anonymous one). Trust these; never parse a
+      // token yourself.
+      const caller = currentUser(request.headers);
 
       // Stateless: a new transport + server per request (no sessionIdGenerator).
       const transport = new WebStandardStreamableHTTPServerTransport();
-      const server = buildServer(user, groups, env);
+      const server = buildServer(caller, env);
       await server.connect(transport);
       return transport.handleRequest(request);
     }

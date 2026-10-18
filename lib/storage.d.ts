@@ -6,6 +6,7 @@ export interface StorageOptions {
 export interface CurrentUserResult {
   email: string;
   groups: string[];
+  member: boolean;
 }
 
 // The keys, an ordinary array, plus `truncated`: true when the gateway stopped
@@ -24,7 +25,7 @@ export class Storage {
   deleteFile(key: string): Promise<unknown>;
 }
 
-export function currentUser(headers: Record<string, string> | Headers): CurrentUserResult;
+export function currentUser(headers: Record<string, string> | Headers): CurrentUserResult | null;
 
 export interface ConnectionsOptions {
   base?: string;

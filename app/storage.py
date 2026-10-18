@@ -73,10 +73,16 @@ class Storage:
         return r.json()
 
 
-def current_user(request) -> dict:
+def current_user(request) -> dict | None:
+    """The caller, or None when the request carries no identity (the platform's
+    health probe, or a local run without the headers). Never default the absence
+    into a value: code that needs a person handles None first."""
     h = request.headers
+    email = h.get("x-forwarded-user", "").strip()
+    if not email:
+        return None
     groups = [g.strip() for g in h.get("x-forwarded-groups", "").split(",") if g.strip()]
-    return {"email": h.get("x-forwarded-user", ""), "groups": groups}
+    return {"email": email, "groups": groups, "member": any(g.endswith("-users") for g in groups)}
 
 
 class NotConnected(Exception):
