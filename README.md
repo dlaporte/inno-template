@@ -4,7 +4,7 @@ A template for building container-based applications on the Innovation Platform.
 
 ## Creating an App from This Template
 
-1. Click **"Use this template"** on GitHub to create a new repository — any
+1. Click **"Use this template"** on GitHub to create a new repository in any
    account or org, public or private; you own the repo, and the platform never
    hosts your source.
 2. Register it: call the **`register_app`** MCP tool. The first call returns
@@ -30,7 +30,7 @@ A template for building container-based applications on the Innovation Platform.
 
 There is no local Wrangler dev flow for the Worker side: the gateway
 (`src/gateway/`) and its build inputs (`package.json`, `package-lock.json`,
-`tsconfig.json`) aren't in this repo at all — the platform injects them at
+`tsconfig.json`) aren't in this repo at all: the platform injects them at
 build time from the promoted `gateway.ref` (see "What's in This Template"
 below). `npx wrangler dev` has nothing to build against here; don't try.
 
@@ -43,17 +43,25 @@ curl http://localhost:8080/healthz
 ```
 
 This exercises `app/` and the `Dockerfile` exactly as CI's container gate
-does, but without the gateway in front — so there's no Access identity and no
+does, but without the gateway in front, so there's no Access identity and no
 `/_storage/*` proxy. Because nothing strips spoofed headers locally, you can
-mock identity by passing the `X-Forwarded-*` headers yourself:
+mock each of the three kinds of caller `CLAUDE.md` describes by passing the
+`X-Forwarded-*` headers yourself:
 
 ```bash
+# A member
 curl -H 'X-Forwarded-User: alice@example.com' \
      -H 'X-Forwarded-Groups: <members group>' \
      http://localhost:8080/
+# Signed in, not a member
+curl -H 'X-Forwarded-User: bob@example.com' \
+     -H 'X-Forwarded-Groups: <open group>' \
+     http://localhost:8080/
+# No identity, as the gateway sends it: both headers present and empty
+curl -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;' http://localhost:8080/
 ```
 
-`<members group>` is your app's members group (`get_platform_status` names it under App groups).
+`<members group>` and `<open group>` are your app's two groups (`get_platform_status` names them under App groups).
 
 To exercise the real gateway and storage, push to `main`: CI runs the full
 gate suite as your safety preflight before any tag deploys. See `CLAUDE.md`
@@ -64,11 +72,11 @@ for details on identity, storage, and the container contract.
 Deploys are RELEASE-driven: pushing to main runs the safety checks only;
 tagging a `v*` release is what deploys.
 
-1. **Push to main** — CI (the platform's reusable workflow) runs the safety
+1. **Push to main**: CI (the platform's reusable workflow) runs the safety
    gates (config-integrity, secrets, SAST, deps, dep-age, container). Nothing deploys:
    this is your safety preflight, and you can push work-in-progress freely.
 2. **Tag a release** (`git tag v1.0.0 && git push origin v1.0.0`, or just run
-   `/inno-ship`) — the gates run again on the tagged commit, then CI exchanges
+   `/inno-ship`): the gates run again on the tagged commit, then CI exchanges
    a GitHub OIDC token with the platform's deploy broker for a short-lived
    Cloudflare token, pushes the exact container image the gates just scanned
    (pinned by digest), and deploys the gateway Worker in front of it.
@@ -77,23 +85,23 @@ tagging a `v*` release is what deploys.
 
 Your D1/R2 storage was provisioned at `register_app` time and is wired via the
 gateway's storage endpoint. (`/healthz` is enforced twice: CI's container gate
-smoke-tests it — the built image must answer 200 within 90s of `docker run` —
+smoke-tests it (the built image must answer 200 within 90s of `docker run`),
 and the platform probes it after each green deploy and then every
 `health.probe_interval_hours` hours, 24 by default.)
 
 ## What's in This Template
 
-- `app/` — Your Python application (Starlette reference implementation; any
-  stack that meets the contract works — see CLAUDE.md. FastAPI is allowed, but
+- `app/`: Your Python application (Starlette reference implementation; any
+  stack that meets the contract works, see CLAUDE.md. FastAPI is allowed, but
   check your lockfile resolves a CVE-clean Starlette first).
-- `app/storage.py` — Python client for platform storage, cross-app data
+- `app/storage.py`: Python client for platform storage, cross-app data
   links, and connections.
-- `lib/` — the same client for JS/TS container apps (`storage.js` +
+- `lib/`: the same client for JS/TS container apps (`storage.js` +
   `storage.d.ts`).
-- `Dockerfile` — Container image definition.
-- `CLAUDE.md` — Platform constraints and best practices (its five `##`
-  section headers are CI-enforced — rewrite the body, keep the headers).
-- `LICENSE` — MIT-0: template code is meant to be embedded in generated
+- `Dockerfile`: Container image definition.
+- `CLAUDE.md`: Platform constraints and best practices (its five `##`
+  section headers are CI-enforced: rewrite the body, keep the headers).
+- `LICENSE`: MIT-0, since template code is meant to be embedded in generated
   apps, attribution-free.
 
 The template carries no `.github/workflows/deploy.yml`: the platform hands you
@@ -123,10 +131,12 @@ is deleted, and tolerates it only while that marker is still present.
 
 ## Maintainer notes
 
-Eight files here are byte-mirrored into `inno-platform`'s CI fixtures
+Ten files here are byte-mirrored into `inno-platform`'s CI fixtures
 (`ci/fixtures/template/`): `CLAUDE.md`, `Dockerfile`, `lib/storage.js`,
-`lib/storage.d.ts`, `app/storage.py`, and the three overlay guides `scaffold/function/CLAUDE.md`,
-`scaffold/mcp-function/CLAUDE.md` and `scaffold/mcp-container/CLAUDE.md`. The
+`lib/storage.d.ts`, `app/storage.py`, the three overlay guides `scaffold/function/CLAUDE.md`,
+`scaffold/mcp-function/CLAUDE.md` and `scaffold/mcp-container/CLAUDE.md`, and
+the function overlays' identity helper, `scaffold/function/app/identity.ts` and
+`scaffold/mcp-function/app/identity.ts`. The
 platform's `template-drift` CI job diffs the fixtures against this repo's
 `main` in **both directions** on platform pushes, platform pull requests and a
 nightly schedule; a push to this repo does not run it. Changing one side alone
@@ -136,7 +146,7 @@ repos together.
 `ci/fixtures/good-app/CLAUDE.md` byte-identical to the template fixture, so a
 `CLAUDE.md` change touches three files.
 
-Platform internals — the gateway source, deploy broker, Cloudflare/Okta/
+Platform internals (the gateway source, deploy broker, Cloudflare/Okta/
 GitHub-App setup, and the OPERATIONS runbook that documents how to rebuild
-the whole environment from scratch — live in the `inno-platform` repo. The
+the whole environment from scratch) live in the `inno-platform` repo. The
 public reusable CI workflow apps call is published by the platform (its CI workflow in `get_platform_status`).

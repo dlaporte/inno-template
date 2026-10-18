@@ -4,7 +4,7 @@ An mcp-container-type app on the Innovation Platform: your code in `app/main.py`
 in a container, a Model Context Protocol (MCP) server, behind the platform's OAuth
 identity gateway. MCP clients (Claude Code, claude.ai) reach it at
 `https://<app host>/mcp` (the exact URL is shown by
-`register_app`, the first-deploy notification, and the panel; `get_platform_status`'s App host pattern gives the host, and `<members group>` is your app's members group under App groups).
+`register_app`, the first-deploy notification, and the panel; `get_platform_status`'s App host pattern gives the host, and `<members group>` and `<open group>` are your app's two groups under App groups).
 
 ## Developing
 
@@ -28,16 +28,24 @@ docker run -p 8080:8080 inno-app
 curl http://localhost:8080/healthz
 ```
 
-Nothing strips spoofed headers locally, so mock the caller by passing the
-`X-Forwarded-*` headers yourself on an MCP request:
+Nothing strips spoofed headers locally, so mock each of the three kinds of caller
+`CLAUDE.md` describes by passing the `X-Forwarded-*` headers yourself on an MCP
+request:
 
 ```bash
-curl -X POST http://localhost:8080/mcp \
-     -H 'Content-Type: application/json' \
-     -H 'Accept: application/json, text/event-stream' \
-     -H 'X-Forwarded-User: alice@example.com' \
-     -H 'X-Forwarded-Groups: <members group>' \
-     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
+call_whoami() {
+  curl -X POST http://localhost:8080/mcp \
+       -H 'Content-Type: application/json' \
+       -H 'Accept: application/json, text/event-stream' \
+       "$@" \
+       -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
+}
+# A member
+call_whoami -H 'X-Forwarded-User: alice@example.com' -H 'X-Forwarded-Groups: <members group>'
+# Signed in, not a member
+call_whoami -H 'X-Forwarded-User: bob@example.com' -H 'X-Forwarded-Groups: <open group>'
+# No identity, as the gateway sends it: both headers present and empty
+call_whoami -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;'
 ```
 
 There is no `/_storage/*` proxy without the gateway, so storage calls fail locally.

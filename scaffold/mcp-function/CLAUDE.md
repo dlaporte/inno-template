@@ -34,10 +34,12 @@ package.json is rejected by CI; the platform injects the root build inputs.
 
 **Do not build authentication, sessions, OAuth, or token parsing.**
 
-The gateway has already verified the caller's OAuth bearer token and injects
+The gateway decides who reaches the app and tells you who the caller is, in the
+identity headers. It checks the caller's OAuth bearer token and sets these
 spoof-proof headers on every forwarded request:
 
-- `X-Forwarded-User`: the user's email (e.g. `alice@example.com`)
+- `X-Forwarded-User`: the caller's email (e.g. `alice@example.com`), empty when
+  the caller has no identity
 - `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
   your app's members group (`get_platform_status` names it under App
   groups) for a member, its open group while the app is open to
@@ -49,14 +51,32 @@ spoof-proof headers on every forwarded request:
   open flag, so a grant, a revoke or a change to open access reaches the
   header within the gateway's introspection cache (60 seconds at most).
 
+Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
+
+Read the caller with the helper in `app/identity.ts`:
+
 ```ts
-const user = request.headers.get("X-Forwarded-User");
+import { currentUser } from "./identity";
+
+const caller = currentUser(request.headers); // { email, groups, member }, or null with no identity
 ```
 
-Close these over your MCP server (as `app/index.ts` does) so tools can authorize
-by user, or by membership versus open access; a finer role needs your own store
-keyed on `X-Forwarded-User`. Never trust anything the client claims about its own
-identity.
+Close `caller` over your MCP server (as `app/index.ts` does) so each tool decides
+what that caller may do. A tool handles no user first, before any per-user read
+or write: refuse, or answer with what is meant for anyone (contract §3), and
+never default the absence back into a value (`?.email`, `?? ""`, `"unknown"`).
+Then authorize by user (`caller.email`, never an id the model supplied), or by
+membership versus open access (`caller.member`); a finer role needs your own
+store keyed on `X-Forwarded-User`. Never trust anything the client claims about
+its own identity. Refuse inside MCP, never with an HTTP status (contract §1.2, a
+MUST): return a tool result marked `isError: true` (or a JSON-RPC error), as
+this tool handler does:
+
+```ts
+// in a tool handler inside buildServer, over the caller's own notes
+if (!caller) return { content: [{ type: "text", text: "no signed-in user" }], isError: true };
+const { results } = await env.DATA.prepare("SELECT * FROM notes WHERE owner = ?").bind(caller.email).all();
+```
 
 ## Persistence (use your bindings)
 

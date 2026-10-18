@@ -7,7 +7,7 @@ This template guides you to build a secure, stateless container app on the Innov
 This is a template for a container-based application that runs on the Innovation Platform. The app container is paired with a Cloudflare Workers gateway that handles identity verification, proxies requests to the container, and provides access to shared storage.
 
 - **Gateway**: Runs on Cloudflare Workers; handles JWT verification and request routing. Platform-owned; never edit it.
-- **Container**: Runs your application on port 8080; receives authenticated requests from the gateway.
+- **Container**: Runs your application on port 8080, behind the gateway. The gateway decides who reaches the app and tells you who the caller is, in the identity headers.
 - **Storage**: The app's own R2 (object storage) and D1 (SQLite database), accessed over HTTP via the storage gateway.
 
 **`app/` and `Dockerfile` are a REFERENCE IMPLEMENTATION**, written in
@@ -25,14 +25,16 @@ Read `app/main.py` to see the reference implementation. The container is built f
 
 **Do not build authentication, sessions, or password storage.**
 
-The gateway has already verified the user. The container receives authenticated requests with the user's identity in headers:
+The gateway decides who reaches the app and tells you who the caller is, in the identity headers:
 
-- `X-Forwarded-User`: User's email (e.g., `alice@example.com`)
+- `X-Forwarded-User`: the caller's email (e.g., `alice@example.com`), empty when the caller has no identity
 - `X-Forwarded-Groups`: this app's own groups and nothing else, comma-separated. It carries your app's members group (`get_platform_status` names it under App groups) when the caller is a member, and its open group while the app is open to everyone. It never names the platform admin group or any other app's groups, so a finer in-app role needs your own role store keyed on `X-Forwarded-User`. This narrowing reaches a `container` app with its next deploy on the platform v0.14.3 gateway (one deployed earlier still receives its other groups until then) and applies to an `mcp-container` app already. Admission is decided before the header is written, not from it, and every person an app admits carries at least one of the two. On a `container` app on the platform's gateway from v0.16.5, which it runs from its first deploy after a platform admin adopts it, they come from the platform's answer at each request, held for at most 10 seconds, so a grant, a revoke or a change to open access reaches the header, and the caller's access, within that window; a caller the platform refuses gets a "No access" page and never reaches the app. On an older gateway they come from the caller's Access token, which records the groups the caller held when they signed in, and a change reaches an SSO caller at their next sign-in: until their Access session ends, they keep both the groups they signed in with and the access those groups gave them. On an `mcp-container` app both are decided at each request, from the platform's member list for the app and the app's open flag, so a grant, a revoke or a change to open access reaches the header within the gateway's introspection cache (60 seconds at most).
 
 The gateway also sets `X-Forwarded-Host` (the hostname the request arrived on), `X-Forwarded-Proto` (always `https`) and `X-Forwarded-For` (the client address from Cloudflare's edge, absent when unknown), deletes `Forwarded`, and drops the Cloudflare Access cookies. Every other header, including `X-Real-IP`, `True-Client-IP` and `X-Forwarded-Port`, is whatever the client sent: never use one for identity or an access decision.
 
-Extract identity in your routes using the `current_user(request)` helper from `storage.py`:
+Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
+
+Read the caller in your routes with the `current_user(request)` helper from `storage.py` (`currentUser(headers)` in `lib/storage.js`). It returns `None` (`null` in JavaScript) when the request carries no identity, otherwise the email, the groups and `member`, true when the caller holds the app's members group. Handle no user first, before any per-person read or write: refuse, or answer with what is meant for anyone (contract §3). Never default the absence back into a value (`or ""`, `?.email`, `?? ""`, `"unknown"`): a placeholder bound into `WHERE owner = ?` is one key that every caller with no identity shares.
 
 ```python
 from starlette.requests import Request
@@ -40,8 +42,10 @@ from starlette.responses import JSONResponse
 from storage import current_user
 
 async def me(request: Request) -> JSONResponse:
-    user = current_user(request)  # {"email": "alice@example.com", "groups": [...]}
-    return JSONResponse(user)
+    user = current_user(request)  # {"email": "alice@example.com", "groups": [...], "member": True}, or None
+    if user is None:
+        return JSONResponse({"signed_in": False})
+    return JSONResponse({"signed_in": True, **user})
 
 # then add to your routes list: Route("/me", me)
 ```
@@ -60,9 +64,15 @@ version before committing to it.)
 
 Replace `{ACCESS_TEAM_DOMAIN}` with the team domain emitted by the platform MCP's `get_platform_status` tool ("Sign-out URL"). It also appears in the platform-injected `wrangler.jsonc` at build time (that file is not in this repo), but don't invent or hard-code a domain from anywhere else. It must be the *team* domain: the app-hostname variant (`/cdn-cgi/access/logout` on this app) clears only one app's cookie, which the live global Access session silently re-issues. The team-domain logout ends the Access session for all platform apps; if the user's Okta session is still alive they can sign back in without a prompt; that's expected, not a bug.
 
-In local dev there is no gateway in front of the container (see the README's "Running Locally"), so nothing strips identity headers; mock a user by passing them directly to your app:
-- Pass `-H 'X-Forwarded-User: alice@example.com'` to set the user.
-- Pass `-H 'X-Forwarded-Groups: <your app's members group>'` to set groups.
+In local dev there is no gateway in front of the container (see the README's "Running Locally"), so nothing strips identity headers; mock each of the three callers by passing the headers directly to your app, here against the `/me` route above:
+
+```bash
+curl -H 'X-Forwarded-User: alice@example.com' -H 'X-Forwarded-Groups: <members group>' http://localhost:8080/me  # a member
+curl -H 'X-Forwarded-User: bob@example.com' -H 'X-Forwarded-Groups: <open group>' http://localhost:8080/me  # signed in, not a member
+curl -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;' http://localhost:8080/me  # no identity: both headers present and empty
+```
+
+`<members group>` and `<open group>` are your app's two groups (`get_platform_status` names them under App groups). The third call sends the headers as the gateway does for a caller with no identity: curl's `-H 'Name;'` sends a header with an empty value.
 
 ## Persistence (use the storage client)
 
@@ -71,19 +81,26 @@ In local dev there is no gateway in front of the container (see the README's "Ru
 The container disk is ephemeral: writes will be lost when the container restarts. Use the `Storage` client to persist data:
 
 ```python
-from storage import Storage
+from starlette.responses import PlainTextResponse
+from storage import Storage, current_user
 
 storage = Storage()
 
+# In a route that reads or writes the caller's own data, handle no user first
+user = current_user(request)
+if user is None:
+    return PlainTextResponse("no signed-in user", status_code=403)
+owner = user["email"]
+
 # Query the database
-results = await storage.query("SELECT * FROM users WHERE email = ?", [email])
+notes = await storage.query("SELECT * FROM notes WHERE owner = ?", [owner])
 
 # Execute mutations (INSERT, UPDATE, DELETE)
-await storage.execute("INSERT INTO users (email, name) VALUES (?, ?)", [email, name])
+await storage.execute("INSERT INTO notes (owner, body) VALUES (?, ?)", [owner, body])
 
 # Store and retrieve files
-await storage.put_file("profile/alice.json", b'{"name": "Alice"}')
-content = await storage.get_file("profile/alice.json")
+await storage.put_file(f"notes/{owner}/draft.txt", body.encode())
+content = await storage.get_file(f"notes/{owner}/draft.txt")
 ```
 
 The storage client communicates with the platform's shared storage via the gateway. `Storage()` defaults its base URL to `http://storage.internal`, which the gateway intercepts (via the container's outbound handler) and routes to the shared R2/D1 backends. **Leave `INNO_STORAGE_BASE` unset in production**: there the default `http://storage.internal` is correct. A local `docker run` has no gateway in front of it, so it has no storage either: storage calls fail there unless you point `INNO_STORAGE_BASE` at a local stand-in that serves the same endpoints. Do not point it at the gateway's public port: that proxies `/_storage` back to the container and loops.

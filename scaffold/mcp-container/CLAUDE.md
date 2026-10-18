@@ -25,11 +25,13 @@ contract works (`get_app_contract` serves it, with current base images).
 
 **Do not build authentication, sessions, OAuth, or token parsing.**
 
-The gateway has already verified the caller's OAuth bearer token (the
-`Authorization` header never reaches your container) and injects spoof-proof
-headers on every forwarded request:
+The gateway decides who reaches the app and tells you who the caller is, in the
+identity headers. It checks the caller's OAuth bearer token (the `Authorization`
+header never reaches your container) and sets these spoof-proof headers on every
+forwarded request:
 
-- `X-Forwarded-User`: the user's email (e.g. `alice@example.com`)
+- `X-Forwarded-User`: the caller's email (e.g. `alice@example.com`), empty when
+  the caller has no identity
 - `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
   your app's members group (`get_platform_status` names it under App
   groups) for a member, its open group while the app is open to
@@ -40,10 +42,20 @@ headers on every forwarded request:
   flag, so a grant, a revoke or a change to open access reaches the header
   within the gateway's introspection cache (60 seconds at most).
 
+Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
+
 In a tool, take `ctx: Context` and call `current_user(ctx.request_context.request)`
-from `storage.py`, as `whoami` does. Authorize by user, or by membership versus
-open access; a finer role needs your own store keyed on `X-Forwarded-User`. Never
-trust what the client claims about itself. No sign-out link (no browser session).
+from `storage.py`, as `whoami` does. It returns `None` when the request carries no
+identity, otherwise the email, the groups and `member`. Handle no user first,
+before any per-user read or write: refuse, or answer with what is meant for
+anyone (contract §3), and never default the absence back into a value (`or ""`,
+`"unknown"`). Then authorize by user (`user["email"]`, never an id the model
+supplied), or by membership versus open access (`user["member"]`); a finer role
+needs your own store keyed on `X-Forwarded-User`. Never trust what the client
+claims about itself. Refuse inside MCP, never with an HTTP status (contract
+§1.3, a MUST): raise from the tool, and FastMCP answers with a tool result
+marked as an error, as the example below does. No sign-out link (no browser
+session).
 
 ## Persistence (use the storage client)
 
@@ -52,7 +64,13 @@ files or SQLite. Use `Storage` from `storage.py`; its default `http://storage.in
 is routed by the gateway to your D1 and R2 (leave `INNO_STORAGE_BASE` unset):
 
 ```python
-rows = await Storage().query("SELECT * FROM notes WHERE owner = ?", [email])
+from mcp.server.fastmcp.exceptions import ToolError
+
+# in a tool that takes ctx: Context
+user = current_user(ctx.request_context.request)
+if user is None:
+    raise ToolError("no signed-in user")  # a tool result marked as an error, never an HTTP status
+rows = await Storage().query("SELECT * FROM notes WHERE owner = ?", [user["email"]])
 ```
 
 Create tables at first use (D1 is empty on provision). **Connections** (per-user
