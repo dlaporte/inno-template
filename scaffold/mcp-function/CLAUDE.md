@@ -6,17 +6,17 @@ This template guides you to build a secure MCP server on the Innovation Platform
 
 This is an mcp-function-type application: your app is a Cloudflare Worker that speaks the
 Model Context Protocol (MCP), reached by MCP clients (Claude Code, claude.ai) over
-OAuth instead of a browser login. The platform's gateway sits in front as an OAuth
+OAuth instead of a browser login. The platform's front door sits in front as an OAuth
 2.1 Resource Server: it verifies the caller's platform-issued bearer token (minted
 by the platform's Authorization Server, audience-bound to THIS app) and forwards
 the request to your Worker with spoof-proof identity headers. There is no container
 and no Dockerfile; CI skips the image gates for mcp-function-type apps.
 
-- **Gateway**: platform-owned, injected at deploy time; never edit or vendor it.
+- **Front door**: platform-owned and never part of this repo.
   It is the OAuth boundary; your Worker never sees or parses a token.
 - **Your Worker**: `app/index.ts`, a standard Worker module (`export default { fetch }`)
-  serving `POST /mcp`. Deployed with `workers_dev: false` and no route; only the
-  gateway can reach it.
+  serving `POST /mcp`. Deployed with no public address of its own; only the
+  front door can reach it.
 - **Storage**: your app's own D1 and R2 arrive as bindings (`env.DATA`, `env.FILES`).
 
 Your code and its dependencies live entirely under `app/`. MCP servers need npm
@@ -34,22 +34,24 @@ package.json is rejected by CI; the platform injects the root build inputs.
 
 **Do not build authentication, sessions, OAuth, or token parsing.**
 
-The gateway decides who reaches the app and tells you who the caller is, in the
+The front door decides who reaches the app and tells you who the caller is, in the
 identity headers. It checks the caller's OAuth bearer token and sets these
 spoof-proof headers on every forwarded request:
 
 - `X-Forwarded-User`: the caller's email (e.g. `alice@example.com`), empty when
   the caller has no identity
+- `X-Forwarded-Subject`: the caller's identity provider ID, which stays with the
+  person when an address passes to someone else; empty when the caller has no
+  identity
 - `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
   your app's members group (`get_platform_status` names it under App
   groups) for a member, its open group while the app is open to
-  everyone. It never names the admin group or another app's groups, and that
-  holds for every MCP app already, whatever gateway it last deployed on.
+  everyone. It never names the admin group or another app's groups.
   Admission is decided before the header is written, not from it, and every
   person an app admits carries at least one of the two. Both are decided at
   each request, from the platform's member list for the app and the app's
   open flag, so a grant, a revoke or a change to open access reaches the
-  header within the gateway's introspection cache (60 seconds at most).
+  header within the front door's introspection cache (60 seconds at most).
 
 Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
 
@@ -58,24 +60,27 @@ Read the caller with the helper in `app/identity.ts`:
 ```ts
 import { currentUser } from "./identity";
 
-const caller = currentUser(request.headers); // { email, groups, member }, or null with no identity
+const caller = currentUser(request.headers); // { email, groups, member, subject }, or null with no identity
 ```
 
 Close `caller` over your MCP server (as `app/index.ts` does) so each tool decides
-what that caller may do. A tool handles no user first, before any per-user read
-or write: refuse, or answer with what is meant for anyone (contract §3), and
-never default the absence back into a value (`?.email`, `?? ""`, `"unknown"`).
-Then authorize by user (`caller.email`, never an id the model supplied), or by
+what that caller may do. `caller.subject` is `null` only when the request
+carries no `X-Forwarded-Subject`. Key per-person rows on `subject`, the person's
+identity provider ID; the address can pass to someone else. A tool handles no
+user first, and a missing `caller.subject` with it, before any per-user read or
+write: refuse, or answer with what is meant for anyone (contract §3), and never
+default the absence back into a value (`?.email`, `?? ""`, `"unknown"`). Then
+authorize by user (`caller.subject`, never an id the model supplied), or by
 membership versus open access (`caller.member`); a finer role needs your own
-store keyed on `X-Forwarded-User`. Never trust anything the client claims about
+store keyed on `X-Forwarded-Subject`. Never trust anything the client claims about
 its own identity. Refuse inside MCP, never with an HTTP status (contract §1.2, a
 MUST): return a tool result marked `isError: true` (or a JSON-RPC error), as
 this tool handler does:
 
 ```ts
 // in a tool handler inside buildServer (its _env renamed to env), over the caller's own notes
-if (!caller) return { content: [{ type: "text", text: "no signed-in user" }], isError: true };
-const { results } = await env.DATA.prepare("SELECT * FROM notes WHERE owner = ?").bind(caller.email).all();
+if (!caller || !caller.subject) return { content: [{ type: "text", text: "no signed-in user" }], isError: true };
+const { results } = await env.DATA.prepare("SELECT * FROM notes WHERE owner = ?").bind(caller.subject).all();
 ```
 
 ## Persistence (use your bindings)
@@ -106,7 +111,7 @@ Connections seam. An MCP server that needs them must be the mcp-container type.
 - `GET /healthz` must return 200 without touching storage; the platform probes it
   after deploy and on schedule.
 - Do not implement or route `/.well-known/oauth-protected-resource` (or its
-  path-inserted `…/mcp` variant); the platform's gateway serves both, and they
+  path-inserted `…/mcp` variant); the platform's front door serves both, and they
   are part of the OAuth boundary you must not touch.
 - Register tools with `server.registerTool(name, { title, description, inputSchema }, handler)`;
   declare tool inputs as a zod raw shape (see `echo` in `app/index.ts`). Return
@@ -116,8 +121,7 @@ Connections seam. An MCP server that needs them must be the mcp-container type.
   config or `.wrangler/` directory, root `.env` files, root package manager config
   (`.yarnrc`, `.yarnrc.yml`, `.pnpmfile.cjs`, `pnpm-workspace.yaml`,
   `bunfig.toml`), or a `.npmrc` anywhere, `app/.npmrc` included. The platform
-  injects all deploy configuration from the promoted gateway ref, and CI rejects
-  shadow copies.
+  injects all deploy configuration, and CI rejects shadow copies.
 
 ## What CI enforces
 

@@ -16,8 +16,8 @@ A template for building container-based applications on the Innovation Platform.
    arguments to finish. The second call refuses with `repo_control_unproven`
    until the file is on the default branch. Registration prunes the template
    to your chosen deployment type and provisions the app: its member list and
-   Okta group, D1, R2, and a Cloudflare Access application for the browser
-   types (`container`, `function`); the MCP types get none and authenticate
+   Okta group, D1 and R2. The browser types (`container`, `function`) sign
+   people in through the platform's own sign-in; the MCP types authenticate
    OAuth bearer tokens instead. (The `register_app` / `get_app_contract` /
    `get_platform_status` tools come from the platform's `innovation-platform`
    plugin; see the `inno-platform` repo's USER-GUIDE for setup.)
@@ -28,11 +28,10 @@ A template for building container-based applications on the Innovation Platform.
 
 ## Running Locally
 
-There is no local Wrangler dev flow for the Worker side: the gateway
-(`src/gateway/`) and its build inputs (`package.json`, `package-lock.json`,
-`tsconfig.json`) aren't in this repo at all: the platform injects them at
-build time from the promoted `gateway.ref` (see "What's in This Template"
-below). `npx wrangler dev` has nothing to build against here; don't try.
+There is no local Wrangler dev flow: the platform's front door and the host
+that runs your container aren't in this repo at all; the platform runs them
+(see "What's in This Template" below). `npx wrangler dev` has nothing to
+build against here; don't try.
 
 What you *can* run locally is the container in isolation:
 
@@ -43,28 +42,31 @@ curl http://localhost:8080/healthz
 ```
 
 This exercises `app/` and the `Dockerfile` exactly as CI's container gate
-does, but without the gateway in front, so there's no Access identity and no
-`/_storage/*` proxy. Because nothing strips spoofed headers locally, you can
-mock each of the three kinds of caller `CLAUDE.md` describes by passing the
-`X-Forwarded-*` headers yourself (the reference `/` ignores identity: add
-`CLAUDE.md`'s `/me` example and point these at it to see the three differ):
+does, but without the platform's front door and host around it, so there's
+no sign-in and no `/_storage/*` proxy. Because nothing strips spoofed headers
+locally, you can mock each of the three kinds of caller `CLAUDE.md` describes
+by passing the `X-Forwarded-*` headers yourself (the reference `/` only shows
+or hides its sign-out link: add `CLAUDE.md`'s `/me` example and point these at
+it to see the three differ):
 
 ```bash
 # A member
 curl -H 'X-Forwarded-User: alice@example.com' \
+     -H 'X-Forwarded-Subject: alice-id' \
      -H 'X-Forwarded-Groups: <members group>' \
      http://localhost:8080/
 # Signed in, not a member
 curl -H 'X-Forwarded-User: bob@example.com' \
+     -H 'X-Forwarded-Subject: bob-id' \
      -H 'X-Forwarded-Groups: <open group>' \
      http://localhost:8080/
-# No identity, as the gateway sends it: both headers present and empty
+# No identity: both headers present and empty
 curl -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;' http://localhost:8080/
 ```
 
 `<members group>` and `<open group>` are your app's two groups (`get_platform_status` names them under App groups).
 
-To exercise the real gateway and storage, push to `main`: CI runs the full
+To exercise the real sign-in and storage, push to `main`: CI runs the full
 gate suite as your safety preflight before any tag deploys. See `CLAUDE.md`
 for details on identity, storage, and the container contract.
 
@@ -79,13 +81,14 @@ tagging a `v*` release is what deploys.
 2. **Tag a release** (`git tag v1.0.0 && git push origin v1.0.0`, or just run
    `/inno-ship`): the gates run again on the tagged commit, then CI exchanges
    a GitHub OIDC token with the platform's deploy broker for a short-lived
-   Cloudflare token, pushes the exact container image the gates just scanned
-   (pinned by digest), and deploys the gateway Worker in front of it.
+   Cloudflare token and pushes the exact container image the gates just
+   scanned (pinned by digest); the platform runs it behind its front door.
 3. The broker attaches your app's domain, records the release, and
    marks the app live.
 
-Your D1/R2 storage was provisioned at `register_app` time and is wired via the
-gateway's storage endpoint. (`/healthz` is enforced twice: CI's container gate
+Your D1/R2 storage was provisioned at `register_app` time and is served to
+your container at `http://storage.internal` by the platform's host.
+(`/healthz` is enforced twice: CI's container gate
 smoke-tests it (the built image must answer 200 within 90s of `docker run`),
 and the platform probes it after each green deploy and then every
 `health.probe_interval_hours` hours, 24 by default.)
@@ -109,12 +112,11 @@ The template carries no `.github/workflows/deploy.yml`: the platform hands you
 the exact one for your instance in `register_app`'s second call, and the
 plugin's `inno-new-app` skill writes it into your repo.
 
-Not in this repo, by design: anything under a root `src/` (the gateway is
-injected at build time and the platform owns that directory) and
-`wrangler.jsonc` (plus the root worker build inputs
-`package.json`/`package-lock.json`/`tsconfig.json`), all supplied at build
-time from the platform's promoted `gateway.ref`. Committing your own copies,
-or any file under `src/`, fails the config-integrity gate.
+Not in this repo, by design: anything under a root `src/` (the platform owns
+that directory) and `wrangler.jsonc` (plus the root build inputs
+`package.json`/`package-lock.json`/`tsconfig.json`), all supplied by the
+platform. Committing your own copies, or any file under `src/`, fails the
+config-integrity gate.
 
 ## Deployment-type scaffolds
 
@@ -147,7 +149,7 @@ repos together.
 `ci/fixtures/good-app/CLAUDE.md` byte-identical to the template fixture, so a
 `CLAUDE.md` change touches three files.
 
-Platform internals (the gateway source, deploy broker, Cloudflare/Okta/
+Platform internals (the front door and host source, deploy broker, Cloudflare/Okta/
 GitHub-App setup, and the OPERATIONS runbook that documents how to rebuild
 the whole environment from scratch) live in the `inno-platform` repo. The
 public reusable CI workflow apps call is published by the platform (its CI workflow in `get_platform_status`).

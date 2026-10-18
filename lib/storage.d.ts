@@ -7,9 +7,10 @@ export interface CurrentUserResult {
   email: string;
   groups: string[];
   member: boolean;
+  subject: string | null;
 }
 
-// The keys, an ordinary array, plus `truncated`: true when the gateway stopped
+// The keys, an ordinary array, plus `truncated`: true when the platform stopped
 // listing at its cap, so the keys are only part of the bucket.
 export type FileListing = string[] & { truncated: boolean };
 

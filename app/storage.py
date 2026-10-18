@@ -7,7 +7,7 @@ import httpx
 class FileList(list):
     """The keys of a listing, an ordinary list, plus `truncated`.
 
-    `truncated` is True when the gateway stopped listing at its cap (APP-CONTRACT R5),
+    `truncated` is True when the platform stopped listing at its cap (APP-CONTRACT R5),
     so the keys are only part of the bucket. Track keys in D1 rather than walk a
     bucket that size.
     """
@@ -76,13 +76,16 @@ class Storage:
 def current_user(request) -> dict | None:
     """The caller, or None when the request carries no identity (the platform's
     health probe, or a local run without the headers). Never default the absence
-    into a value: code that needs a person handles None first."""
+    into a value: code that needs a person handles None first. `subject` is the
+    caller's identity provider ID, None when the header is empty or missing; a
+    subject alone never makes a user."""
     h = request.headers
     email = h.get("x-forwarded-user", "").strip()
     if not email:
         return None
     groups = [g.strip() for g in h.get("x-forwarded-groups", "").split(",") if g.strip()]
-    return {"email": email, "groups": groups, "member": any(g.endswith("-users") for g in groups)}
+    subject = h.get("x-forwarded-subject", "").strip() or None
+    return {"email": email, "groups": groups, "member": any(g.endswith("-users") for g in groups), "subject": subject}
 
 
 class NotConnected(Exception):
