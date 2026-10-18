@@ -1,8 +1,8 @@
 // REFERENCE IMPLEMENTATION (TypeScript Worker) for an mcp-function-type app. Your whole
 // app lives in app/; this file is the module the platform deploys as your app
-// Worker. In front of it runs the platform's gateway, which decides who reaches
-// the app and names the caller in spoof-proof identity headers; never build
-// auth here (see CLAUDE.md).
+// Worker. In front of it runs the platform's front door, which decides who
+// reaches the app and names the caller in spoof-proof identity headers; never
+// build auth here (see CLAUDE.md).
 //
 // This is a STATELESS Streamable-HTTP MCP server: a fresh transport + server per
 // request, with no session store. Stateless is the ONLY mode this platform
@@ -13,7 +13,7 @@
 //   - export default { fetch }                    (standard Worker module)
 //   - POST /mcp     -> the MCP endpoint (JSON-RPC over Streamable HTTP)
 //   - GET  /healthz -> 200, storage-independent   (the platform probes it)
-//   - identity arrives as spoof-proof request headers (gateway-injected)
+//   - identity arrives as spoof-proof request headers (set by the front door)
 //   - declare npm deps in app/package.json (a ROOT package.json is rejected)
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -28,7 +28,7 @@ interface Env {
 }
 
 // Build a fresh MCP server for a single request, closing over the caller the
-// gateway named in the identity headers (null when there is none) so tools can
+// front door named in the identity headers (null when there is none) so tools can
 // decide per request what that caller may do. An MCP app refuses with a tool
 // result marked `isError: true` (or a JSON-RPC error), never with an HTTP
 // status: an HTTP error is a transport failure, and the model never sees why.
@@ -38,7 +38,7 @@ function buildServer(caller: CurrentUserResult | null, _env: Env): McpServer {
   const server = new McpServer({ name: "inno-mcp-app", version: "0.1.0" });
 
   // A read-only tool with NO inputs: reports who the platform says you are. The
-  // identity headers come from the gateway; the app never authenticates anyone.
+  // identity headers come from the front door; the app never authenticates anyone.
   server.registerTool(
     "whoami",
     {
@@ -78,7 +78,7 @@ export default {
     const url = new URL(request.url);
 
     // Health probe: 200 without touching storage. The platform (through its
-    // gateway) probes this after deploy and on schedule; keep it dependency-free.
+    // front door) probes this after deploy and on schedule; keep it dependency-free.
     if (request.method === "GET" && url.pathname === "/healthz") {
       return Response.json({ status: "ok" });
     }
@@ -91,7 +91,7 @@ export default {
       if (request.method !== "POST") {
         return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
       }
-      // Identity: spoof-proof headers the gateway sets for the caller it let
+      // Identity: spoof-proof headers the front door sets for the caller it let
       // through (all empty for an anonymous one). Trust these; never parse a
       // token yourself.
       const caller = currentUser(request.headers);

@@ -1,7 +1,7 @@
 # REFERENCE IMPLEMENTATION (Python, FastMCP) for an mcp-container-type app. It
 # runs in the container the root Dockerfile builds. In front of it runs the
-# platform's gateway, which decides who reaches the app and names the caller in
-# spoof-proof identity headers: never build auth here (see CLAUDE.md).
+# platform's front door, which decides who reaches the app and names the caller
+# in spoof-proof identity headers: never build auth here (see CLAUDE.md).
 #
 # This is a STATELESS Streamable HTTP MCP server: no session store, no state
 # carried from one request to the next. Stateless is the ONLY mode this
@@ -12,7 +12,7 @@
 #   - `app` below is the ASGI app the Dockerfile serves (uvicorn on 0.0.0.0:8080)
 #   - POST /mcp     -> the MCP endpoint (JSON-RPC over Streamable HTTP; GET/DELETE 405)
 #   - GET  /healthz -> 200, storage-independent   (CI smoke gate + runtime probe)
-#   - identity arrives as spoof-proof request headers (gateway-injected)
+#   - identity arrives as spoof-proof request headers (set by the front door)
 #   - durable state goes through storage.py, never the container's disk
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -27,9 +27,9 @@ mcp = FastMCP(
     # Stateless: a fresh transport per request, nothing correlated across them.
     stateless_http=True,
     # FastMCP turns on localhost-only DNS-rebinding protection when its host
-    # setting is left at the default. The gateway proxies with this app's
-    # public Host header, so with protection on every /mcp request answers 421.
-    # The gateway is the identity boundary here; keep this off.
+    # setting is left at the default. The platform's host proxies with this
+    # app's public Host header, so with protection on every /mcp request answers
+    # 421. The front door is the identity boundary here; keep this off.
     transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
 
@@ -43,7 +43,7 @@ async def healthz(request: Request) -> JSONResponse:
 
 # A read-only tool with NO inputs: reports who the platform says you are. `ctx`
 # is injected by FastMCP (it is not a tool argument), and its request carries
-# the gateway's identity headers; current_user reads them and answers None when
+# the front door's identity headers; current_user reads them and answers None when
 # there are none.
 @mcp.tool()
 async def whoami(ctx: Context) -> str:
