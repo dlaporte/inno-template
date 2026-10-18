@@ -46,7 +46,8 @@ This exercises `app/` and the `Dockerfile` exactly as CI's container gate
 does, but without the gateway in front, so there's no Access identity and no
 `/_storage/*` proxy. Because nothing strips spoofed headers locally, you can
 mock each of the three kinds of caller `CLAUDE.md` describes by passing the
-`X-Forwarded-*` headers yourself:
+`X-Forwarded-*` headers yourself (the reference `/` ignores identity: add
+`CLAUDE.md`'s `/me` example and point these at it to see the three differ):
 
 ```bash
 # A member

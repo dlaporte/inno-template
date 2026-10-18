@@ -73,7 +73,7 @@ MUST): return a tool result marked `isError: true` (or a JSON-RPC error), as
 this tool handler does:
 
 ```ts
-// in a tool handler inside buildServer, over the caller's own notes
+// in a tool handler inside buildServer (its _env renamed to env), over the caller's own notes
 if (!caller) return { content: [{ type: "text", text: "no signed-in user" }], isError: true };
 const { results } = await env.DATA.prepare("SELECT * FROM notes WHERE owner = ?").bind(caller.email).all();
 ```
