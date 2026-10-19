@@ -58,7 +58,7 @@ choose FastAPI: older releases pin a CVE-bearing Starlette line that fails
 the platform's dependency/image gates; check your lockfile resolves a clean
 version before committing to it.)
 
-**Sign out** is one link, no session code. Whenever the app shows who is signed in, link to `/_auth/signout` on the app's own host. Signing out ends the panel and every app in this browser. Include it in your layout (footer is fine):
+**Sign out** is one link, no session code. Whenever the app shows who is signed in, link to `/_auth/signout` on the app's own host. Signing out ends the person's panel and every app session they hold, in every browser. Include it in your layout (footer is fine):
 
 ```html
 <a href="/_auth/signout">Sign out</a>

@@ -22,9 +22,9 @@ and no Dockerfile; CI skips the image gates for mcp-function-type apps.
 Your code and its dependencies live entirely under `app/`. MCP servers need npm
 packages, so this scaffold ships an `app/package.json` (the MCP SDK + zod) AND an
 `app/package-lock.json`. Add packages with `npm install <pkg>` inside `app/` and
-commit both files together: CI's `app-deps` job installs from the lockfile with
-`npm ci --ignore-scripts --omit=dev` on every push to your default branch, so a
-missing or stale lockfile fails the push, not only the release. The lockfile is
+commit both files together: CI's `app-build` job installs from the lockfile with
+`npm ci --ignore-scripts --omit=dev` and bundles your Worker on every push to your
+default branch, so a missing or stale lockfile fails the push, not only the release. The lockfile is
 also what lets the release-age gate date your dependencies. Declare every package
 your Worker imports at runtime under `dependencies`: `devDependencies` are neither
 installed nor audited, and nothing is installed at the repo root. A ROOT
