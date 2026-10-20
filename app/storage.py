@@ -1,4 +1,5 @@
 import os
+import re
 from urllib.parse import quote
 
 import httpx
@@ -37,8 +38,9 @@ class Storage:
     async def execute(self, sql: str, params: list | None = None):
         return await self._post("/_storage/sql/execute", {"sql": sql, "params": params or []})
 
-    # Cross-app data links (APP-CONTRACT §2.1): the linked source app's D1,
-    # available only after the owner created the link and the app redeployed.
+    # Cross-app data links (APP-CONTRACT §2.1): the linked source app's D1 and
+    # its files, reachable once the owner has created the link and the platform
+    # has bound it to this app (its next deploy or restart, or a platform release).
     async def query_linked(self, source_app: str, sql: str, params: list | None = None):
         path = f"/_storage/linked/{quote(source_app, safe='')}/sql/query"
         return (await self._post(path, {"sql": sql, "params": params or []}))["results"]
@@ -46,6 +48,32 @@ class Storage:
     async def execute_linked(self, source_app: str, sql: str, params: list | None = None):
         path = f"/_storage/linked/{quote(source_app, safe='')}/sql/execute"
         return await self._post(path, {"sql": sql, "params": params or []})
+
+    async def put_linked_file(self, source_app: str, key: str, data: bytes):
+        path = f"/_storage/linked/{quote(source_app, safe='')}/files/{quote(key, safe='')}"
+        r = await self._request("PUT", path, content=data)
+        r.raise_for_status()
+        return r.json()
+
+    async def get_linked_file(self, source_app: str, key: str) -> bytes | None:
+        """The file's bytes, or None only for a key the source's bucket lacks: the
+        linked route answers 404 for a source with no deployed link too
+        (not_linked), which raises."""
+        path = f"/_storage/linked/{quote(source_app, safe='')}/files/{quote(key, safe='')}"
+        r = await self._request("GET", path)
+        if r.status_code == 404 and _error_code(r) == "not_found":
+            return None
+        r.raise_for_status()
+        return r.content
+
+    async def list_linked_files(self, source_app: str) -> FileList:
+        return await self._listing(f"/_storage/linked/{quote(source_app, safe='')}/files")
+
+    async def delete_linked_file(self, source_app: str, key: str):
+        path = f"/_storage/linked/{quote(source_app, safe='')}/files/{quote(key, safe='')}"
+        r = await self._request("DELETE", path)
+        r.raise_for_status()
+        return r.json()
 
     async def put_file(self, key: str, data: bytes):
         r = await self._request("PUT", f"/_storage/files/{quote(key, safe='')}", content=data)
@@ -60,17 +88,43 @@ class Storage:
         return r.content
 
     async def list_files(self) -> FileList:
-        r = await self._request("GET", "/_storage/files")
+        return await self._listing("/_storage/files")
+
+    async def delete_file(self, key: str):
+        r = await self._request("DELETE", f"/_storage/files/{quote(key, safe='')}")
+        r.raise_for_status()
+        return r.json()
+
+    async def _listing(self, path: str) -> FileList:
+        r = await self._request("GET", path)
         r.raise_for_status()
         out = r.json()
         keys = FileList(out["keys"])
         keys.truncated = out.get("truncated") is True
         return keys
 
-    async def delete_file(self, key: str):
-        r = await self._request("DELETE", f"/_storage/files/{quote(key, safe='')}")
-        r.raise_for_status()
-        return r.json()
+
+def _error_code(r: httpx.Response) -> str | None:
+    """The `error` code a failed storage answer carries, or None when its body has none."""
+    try:
+        body = r.json()
+    except ValueError:
+        return None
+    return body["error"] if isinstance(body, dict) and isinstance(body.get("error"), str) else None
+
+
+def file_download_headers(filename: str) -> dict[str, str]:
+    """Headers for serving a stored file back to a browser (APP-SECURITY §3):
+    always a download, never rendered, so an uploaded HTML or SVG file cannot
+    run script on the site. Each character of the name outside A-Z, a-z, 0-9,
+    ".", "_" and "-" becomes "_", so the name cannot leave its quotes or the
+    header line."""
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
+    return {
+        "Content-Disposition": f'attachment; filename="{safe}"',
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox",
+    }
 
 
 def current_user(request) -> dict | None:

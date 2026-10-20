@@ -4,7 +4,7 @@ An mcp-container-type app on the Innovation Platform: your code in `app/main.py`
 in a container, a Model Context Protocol (MCP) server, behind the platform's front
 door, which checks each caller's OAuth token. MCP clients (Claude Code, claude.ai) reach it at
 `https://<app host>/mcp` (the exact URL is shown by
-`register_app`, the first-deploy notification, and the panel; `get_platform_status`'s App host pattern gives the host, and `<members group>` and `<open group>` are your app's two groups under App groups).
+`register_app`, the first-deploy notification, and the panel; `get_platform_status`'s App host pattern gives the host, and `<members group>` is your app's one group under App groups).
 
 ## Developing
 
@@ -42,11 +42,14 @@ call_whoami() {
 }
 # A member
 call_whoami -H 'X-Forwarded-User: alice@example.com' -H 'X-Forwarded-Subject: alice-id' -H 'X-Forwarded-Groups: <members group>'
-# Signed in, not a member
-call_whoami -H 'X-Forwarded-User: bob@example.com' -H 'X-Forwarded-Subject: bob-id' -H 'X-Forwarded-Groups: <open group>'
+# Signed in, not a member: no group
+call_whoami -H 'X-Forwarded-User: bob@example.com' -H 'X-Forwarded-Subject: bob-id' -H 'X-Forwarded-Groups;'
 # No identity: both headers present and empty
 call_whoami -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;'
 ```
+
+An anonymous app is never told who the caller is, so every request it gets looks
+like the third.
 
 There is no `/_storage/*` proxy without the platform's host, so storage calls fail
 locally. To exercise the real front door and storage, push to `main`: CI runs the full

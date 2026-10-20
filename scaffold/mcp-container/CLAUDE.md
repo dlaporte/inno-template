@@ -37,15 +37,15 @@ forwarded request:
 - `X-Forwarded-Subject`: the caller's identity provider ID, which stays with the
   person when an address passes to someone else; empty when the caller has no
   identity
-- `X-Forwarded-Groups`: comma-separated, and only this app's own groups:
-  your app's members group (`get_platform_status` names it under App
-  groups) for a member, its open group while the app is open to
-  everyone. It never names the admin group or another app's groups. Admission
-  is decided before the header is written, not from it, and every person an
-  app admits carries at least one of the two. Both are decided at each
-  request, from the platform's member list for the app and the app's open
-  flag, so a grant, a revoke or a change to open access reaches the header
-  within the front door's introspection cache (60 seconds at most).
+- `X-Forwarded-Groups`: at most one group, your app's members group
+  (`get_platform_status` names it under App groups), present for a member
+  and empty for every other caller. It never names the admin group or another
+  app's groups. Admission is decided before the header is written, not from
+  it: an app widened to internal admits anyone who signs in, and a caller who
+  is not a member arrives with the header empty. It is decided at each
+  request, from the platform's member list for the app and the app's
+  audience, so a grant, a revoke or a change to the app's audience reaches
+  the header within the front door's introspection cache (60 seconds at most).
 
 Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
 
@@ -58,7 +58,7 @@ else. Handle no user first, and a missing `subject` with it, before any per-user
 read or write: refuse, or answer with what is meant for anyone (contract §3), and
 never default the absence back into a value (`or ""`, `"unknown"`). Then
 authorize by user (`user["subject"]`, never an id the model supplied), or by
-membership versus open access (`user["member"]`); a finer role needs your own
+membership (`user["member"]`, false for a signed-in non-member); a finer role needs your own
 store keyed on `X-Forwarded-Subject`. Never trust what the client
 claims about itself. Refuse inside MCP, never with an HTTP status (contract
 §1.3, a MUST): raise from the tool, and FastMCP answers with a tool result

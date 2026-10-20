@@ -15,10 +15,13 @@ A template for building container-based applications on the Innovation Platform.
    access to it, skip the link), then call `register_app` again with the same
    arguments to finish. The second call refuses with `repo_control_unproven`
    until the file is on the default branch. Registration prunes the template
-   to your chosen deployment type and provisions the app: its member list and
-   Okta group, D1 and R2. The browser types (`container`, `function`) sign
-   people in through the platform's own sign-in; the MCP types authenticate
-   OAuth bearer tokens instead. (The `register_app` / `get_app_contract` /
+   to your chosen deployment type and provisions the app: its member list, D1
+   and R2. It also fixes the app's identity for life: identity-aware (the app
+   is told who each caller is) or anonymous (it never is, and only an
+   anonymous app can be made public), whose own guide replaces `CLAUDE.md`.
+   The browser types (`container`, `function`) sign people in through the
+   platform's own sign-in; the MCP types authenticate OAuth bearer tokens
+   instead; a public app signs no one in. (The `register_app` / `get_app_contract` /
    `get_platform_status` tools come from the platform's `innovation-platform`
    plugin; see the `inno-platform` repo's USER-GUIDE for setup.)
 3. Pull (or clone) your repository after the second call, which pushes the
@@ -55,16 +58,16 @@ curl -H 'X-Forwarded-User: alice@example.com' \
      -H 'X-Forwarded-Subject: alice-id' \
      -H 'X-Forwarded-Groups: <members group>' \
      http://localhost:8080/
-# Signed in, not a member
+# Signed in, not a member: no group
 curl -H 'X-Forwarded-User: bob@example.com' \
      -H 'X-Forwarded-Subject: bob-id' \
-     -H 'X-Forwarded-Groups: <open group>' \
+     -H 'X-Forwarded-Groups;' \
      http://localhost:8080/
 # No identity: both headers present and empty
 curl -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;' http://localhost:8080/
 ```
 
-`<members group>` and `<open group>` are your app's two groups (`get_platform_status` names them under App groups).
+`<members group>` is your app's one group (`get_platform_status` names it under App groups); a signed-in caller who is not a member arrives with `X-Forwarded-Groups` empty. An anonymous app is never told who the caller is, so every request it gets looks like the third.
 
 To exercise the real sign-in and storage, push to `main`: CI runs the full
 gate suite as your safety preflight before any tag deploys. See `CLAUDE.md`
@@ -128,18 +131,25 @@ with a Worker; `scaffold/mcp-container/` keeps the container shape (the root
 `Dockerfile`, `lib/` and `app/storage.py`) and swaps in a FastMCP server. When
 the platform generates an app repo it prunes to exactly one, driven by the
 app's type: an overlay's files replace their root namesakes, and its
-`.scaffold-remove` lists what that variant deletes outright. Generated repos
-never contain `scaffold/`: CI rejects it as a leftover once `app/.needs-build`
-is deleted, and tolerates it only while that marker is still present.
+`.scaffold-remove` lists what that variant deletes outright. An app registered
+anonymous also takes `scaffold/anonymous/<type>/CLAUDE.md` as its `CLAUDE.md`,
+laid over its type's scaffold in the same commit: one anonymous guide per type,
+each its type's guide rewritten where an app that is never told who the caller
+is differs. Generated repos never contain `scaffold/`: CI rejects it as a
+leftover once `app/.needs-build` is deleted, and tolerates it only while that
+marker is still present.
 
 ## Maintainer notes
 
-Ten files here are byte-mirrored into `inno-platform`'s CI fixtures
+Fourteen files here are byte-mirrored into `inno-platform`'s CI fixtures
 (`ci/fixtures/template/`): `CLAUDE.md`, `Dockerfile`, `lib/storage.js`,
 `lib/storage.d.ts`, `app/storage.py`, the three overlay guides `scaffold/function/CLAUDE.md`,
-`scaffold/mcp-function/CLAUDE.md` and `scaffold/mcp-container/CLAUDE.md`, and
+`scaffold/mcp-function/CLAUDE.md` and `scaffold/mcp-container/CLAUDE.md`,
 the function overlays' identity helper, `scaffold/function/app/identity.ts` and
-`scaffold/mcp-function/app/identity.ts`. The
+`scaffold/mcp-function/app/identity.ts`, and the four anonymous guides,
+`scaffold/anonymous/container/CLAUDE.md`, `scaffold/anonymous/function/CLAUDE.md`,
+`scaffold/anonymous/mcp-function/CLAUDE.md` and
+`scaffold/anonymous/mcp-container/CLAUDE.md`. The
 platform's `template-drift` CI job diffs the fixtures against this repo's
 `main` in **both directions** on platform pushes, platform pull requests and a
 nightly schedule; a push to this repo does not run it. Changing one side alone

@@ -24,13 +24,13 @@ Read `app/main.py` to see the reference implementation. The container is built f
 
 ## Identity (do not build auth)
 
-**Do not build authentication, sessions, or password storage.**
+**Do not build authentication, sessions, or password storage.** An anonymous app keeps per-visitor state (a cart, a form step) in a cookie of its own under contract R10 (`get_app_contract`), never as an identity; an app registered anonymous gets the template's anonymous guide (`scaffold/anonymous/container/CLAUDE.md`) in place of this file.
 
 The front door decides who reaches the app and tells you who the caller is, in the identity headers:
 
 - `X-Forwarded-User`: the caller's email (e.g., `alice@example.com`), empty when the caller has no identity
 - `X-Forwarded-Subject`: the caller's identity provider ID, which stays with the person when an address passes to someone else; empty when the caller has no identity
-- `X-Forwarded-Groups`: this app's own groups and nothing else, comma-separated. It carries your app's members group (`get_platform_status` names it under App groups) when the caller is a member, and its open group while the app is open to everyone. It never names the platform admin group or any other app's groups, so a finer in-app role needs your own role store keyed on `X-Forwarded-Subject`. Admission is decided before the header is written, not from it, and every person an app admits carries at least one of the two. On a `container` app they come from the platform's answer at each request, held for at most 10 seconds, so a grant, a revoke or a change to open access reaches the header, and the caller's access, within that window; a caller the platform refuses gets a "No access" page and never reaches the app. On an `mcp-container` app both are decided at each request, from the platform's member list for the app and the app's open flag, so a grant, a revoke or a change to open access reaches the header within the front door's introspection cache (60 seconds at most).
+- `X-Forwarded-Groups`: at most one group, your app's members group (`get_platform_status` names it under App groups), present when the caller is a member and empty for every other caller. It never names the platform admin group or any other app's groups, so a finer in-app role needs your own role store keyed on `X-Forwarded-Subject`. Admission is decided before the header is written, not from it: an app widened to internal admits anyone who signs in, and a caller who is not a member arrives with the header empty. On a `container` app it comes from the platform's answer at each request, held for at most 10 seconds, so a grant, a revoke or a change to the app's audience reaches the header, and the caller's access, within that window; a caller the platform refuses gets a "No access" page and never reaches the app. On an `mcp-container` app it is decided at each request, from the platform's member list for the app and the app's audience, so a grant, a revoke or a change to the app's audience reaches the header within the front door's introspection cache (60 seconds at most).
 
 The front door also sets `X-Forwarded-Host` (the hostname the request arrived on), `X-Forwarded-Proto` (always `https`) and `X-Forwarded-For` (the client address from Cloudflare's edge, absent when unknown), deletes `Forwarded`, and keeps the platform's own cookies and its `/_auth/` paths from the app. Every other header, including `X-Real-IP`, `True-Client-IP` and `X-Forwarded-Port`, is whatever the client sent: never use one for identity or an access decision.
 
@@ -70,11 +70,11 @@ In local dev nothing runs in front of the container (see the README's "Running L
 
 ```bash
 curl -H 'X-Forwarded-User: alice@example.com' -H 'X-Forwarded-Subject: alice-id' -H 'X-Forwarded-Groups: <members group>' http://localhost:8080/me  # a member
-curl -H 'X-Forwarded-User: bob@example.com' -H 'X-Forwarded-Subject: bob-id' -H 'X-Forwarded-Groups: <open group>' http://localhost:8080/me  # signed in, not a member
+curl -H 'X-Forwarded-User: bob@example.com' -H 'X-Forwarded-Subject: bob-id' -H 'X-Forwarded-Groups;' http://localhost:8080/me  # signed in, not a member
 curl -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;' http://localhost:8080/me  # no identity: both headers present and empty
 ```
 
-`<members group>` and `<open group>` are your app's two groups (`get_platform_status` names them under App groups). The third call sends the identity headers empty (curl's `-H 'Name;'` sends a header with an empty value); the helper reads an empty header and a missing one the same way: no user.
+`<members group>` is your app's one group (`get_platform_status` names it under App groups). The second call sends `X-Forwarded-Groups` empty, as the front door does for a signed-in caller who is not a member. The third call sends the identity headers empty (curl's `-H 'Name;'` sends a header with an empty value); the helper reads an empty header and a missing one the same way: no user.
 
 ## Persistence (use the storage client)
 
@@ -118,15 +118,25 @@ platform stopped listing at its cap, so the keys are only part of the bucket;
 track keys in D1 rather than walk a bucket that size. Whatever the stack:
 durable state lives HERE, never on the container's disk.
 
+Serve a file someone uploaded back only as a download, with the headers
+`file_download_headers(filename)` returns (`fileDownloadHeaders(filename)` in
+JS), never inline from any host (APP-SECURITY §3).
+
 ### Cross-app data links
 
 If this app's owner has linked another of their own apps' data to it
 (`link_app_data`, contract §2.1), a container app reaches the linked D1 via
 `storage.query_linked("<source-app>", sql, params)` and
 `execute_linked(...)`, which wrap
-`POST /_storage/linked/{source-app}/sql/query` and `/execute`. The grant is
-full read-write, and the route exists only after the platform templates it in
-at deploy time; an app cannot conjure one.
+`POST /_storage/linked/{source-app}/sql/query` and `/execute`, and the
+linked files via `put_linked_file("<source-app>", key, data)`,
+`get_linked_file`, `list_linked_files` and `delete_linked_file`
+(`putLinkedFile` and its siblings in JS), which wrap
+`PUT/GET/DELETE /_storage/linked/{source-app}/files/{key}` and
+`GET /_storage/linked/{source-app}/files`. The grant is full read-write, over
+the source's database and every one of its files, and the platform binds it
+to this app at its next deploy or restart (a platform release binds it too);
+an app cannot conjure one.
 
 ### Connections (per-user credentials for an external backend)
 

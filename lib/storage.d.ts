@@ -20,6 +20,11 @@ export class Storage {
   execute(sql: string, params?: unknown[]): Promise<unknown>;
   queryLinked(sourceApp: string, sql: string, params?: unknown[]): Promise<unknown[]>;
   executeLinked(sourceApp: string, sql: string, params?: unknown[]): Promise<unknown>;
+  putLinkedFile(sourceApp: string, key: string, bytes: unknown): Promise<unknown>;
+  // Null only for a key the source's bucket lacks; a missing link throws.
+  getLinkedFile(sourceApp: string, key: string): Promise<Uint8Array | null>;
+  listLinkedFiles(sourceApp: string): Promise<FileListing>;
+  deleteLinkedFile(sourceApp: string, key: string): Promise<unknown>;
   putFile(key: string, bytes: unknown): Promise<unknown>;
   getFile(key: string): Promise<Uint8Array | null>;
   listFiles(): Promise<FileListing>;
@@ -27,6 +32,11 @@ export class Storage {
 }
 
 export function currentUser(headers: Record<string, string> | Headers): CurrentUserResult | null;
+
+// Content-Disposition (attachment, the name's characters outside A-Z, a-z,
+// 0-9, ".", "_" and "-" each replaced by "_"), X-Content-Type-Options and
+// Content-Security-Policy: serve a stored file with them (APP-SECURITY §3).
+export function fileDownloadHeaders(filename: string): Record<string, string>;
 
 export interface ConnectionsOptions {
   base?: string;

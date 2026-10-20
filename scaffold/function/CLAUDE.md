@@ -20,7 +20,7 @@ The front door decides who reaches the app and tells you who the caller is, in t
 
 - `X-Forwarded-User`: the caller's email (e.g. `alice@example.com`), empty when the caller has no identity
 - `X-Forwarded-Subject`: the caller's identity provider ID, which stays with the person when an address passes to someone else; empty when the caller has no identity
-- `X-Forwarded-Groups`: comma-separated, and only this app's own groups: your app's members group (`get_platform_status` names it under App groups) when the caller is a member, its open group while the app is open to everyone. Nothing else (no admin group, no other app's groups), so finer roles need your own store keyed on `X-Forwarded-Subject`.
+- `X-Forwarded-Groups`: at most one group, your app's members group (`get_platform_status` names it under App groups), present when the caller is a member and empty for every other caller. Nothing else (no admin group, no other app's groups), so finer roles need your own store keyed on `X-Forwarded-Subject`.
 - `X-Forwarded-Host`, `X-Forwarded-Proto` and `X-Forwarded-For` are also set by the front door; every other header (including `X-Real-IP`) is caller-controlled.
 
 Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
