@@ -24,7 +24,7 @@ Read `app/main.py` to see the reference implementation. The container is built f
 
 ## Identity (do not build auth)
 
-**Do not build authentication, sessions, or password storage.** An anonymous app keeps per-visitor state (a cart, a form step) in a cookie of its own under contract R10 (`get_app_contract`), never as an identity; an app registered anonymous gets the template's anonymous guide (`scaffold/anonymous/container/CLAUDE.md`) in place of this file.
+**Do not build authentication, sessions, or password storage.** An anonymous app keeps per-visitor state (a cart, a form step) in a cookie of its own under contract R10 (`get_app_contract`), never as an identity; an app registered anonymous gets its own guide in place of this file, written by the platform's scaffold commit at registration.
 
 The front door decides who reaches the app and tells you who the caller is, in the identity headers:
 

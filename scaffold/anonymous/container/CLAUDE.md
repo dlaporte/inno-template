@@ -34,7 +34,7 @@ The contract's rule for an anonymous app, R10: No accounts, no per-person views,
 
 **Cookies.** Every cookie the app sets, its per-visitor state among them, carries the `__Host-` prefix (so `Secure`, `Path=/` and no `Domain`) and is `HttpOnly` unless the app's own script must read it: every app shares one site, and a page on another app's host can shadow any other cookie. Accept a state change only from the app's own pages (APP-SECURITY §12).
 
-**What the platform still knows.** While the app is members-only or internal, the platform still knows who signed in to reach it (its admins, its audit log and its logs do), though the owner's panel shows sign-in counts, not people; once the app is public, nobody signs in to reach it. **Where the promise ends:** the platform does not tell the app who the caller is, and it does not make visits unlinkable against an owner who tries. The app still sees each caller's address (`X-Forwarded-For`) and the timing of each request, small counts can single a person out, a request to start the app while it is stopped tells the owner who asked, and an identity-aware app of the same owner on the site can link a visit to a person.
+**What the platform still knows.** While the app is members-only or internal, the platform still knows who signed in to reach it (its admins, its audit log and its logs do), though the owner's panel shows sign-in counts, not people; once the app is public, nobody signs in to reach it. **Where the promise ends:** the platform does not tell the app who the caller is, and it does not make visits unlinkable against an owner who tries. The app still sees each caller's address (`X-Forwarded-For` and `CF-Connecting-IP`) and the timing of each request, small counts can single a person out, a request to start the app while it is stopped tells the owner who asked, and an identity-aware app of the same owner on the site can link a visit to a person.
 
 ## Persistence (use the storage client)
 
@@ -124,10 +124,12 @@ The container contract above applies in full, plus the MCP deltas (contract
 §1.3): serve the **Streamable HTTP** MCP transport at `POST /mcp`,
 **stateless only**: no session correlation across requests, so
 server-initiated MCP features (notifications, sampling, elicitation,
-subscriptions) are unavailable. Identity still arrives only as the
-`X-Forwarded-*` headers: the front door is the OAuth boundary and the
-`Authorization` header never reaches you, and the sign-out link does not
-apply (there is no browser session). Python gotcha: FastMCP silently enables
+subscriptions) are unavailable. The app is never told who the caller is
+(this guide's Identity section): the four identity headers arrive present
+and empty, the front door is the OAuth boundary (it asks for no token once
+the app is public), the `Authorization` header never reaches you, and the
+sign-out link does not apply (there is no browser session).
+Python gotcha: FastMCP silently enables
 localhost-only DNS-rebinding protection when its `host` *setting* is left at
 the default, rejecting every proxied `/mcp` request with `421 Invalid Host
 header`: pass

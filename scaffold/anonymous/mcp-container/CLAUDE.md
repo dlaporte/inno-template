@@ -61,10 +61,11 @@ platform still knows who signed in to reach it (its admins, its audit log and it
 logs do), though the owner's panel shows sign-in counts, not people; once the app is
 public, nobody signs in to reach it. **Where the promise ends:** the platform does
 not tell the app who the caller is, and it does not make visits unlinkable against
-an owner who tries. The app still sees each caller's address (`X-Forwarded-For`)
-and the timing of each request, small counts can single a person out, a request to
-start the app while it is stopped tells the owner who asked, and an identity-aware
-app of the same owner on the site can link a visit to a person.
+an owner who tries. The app still sees each caller's address (`X-Forwarded-For`
+and `CF-Connecting-IP`) and the timing of each request, small counts can single a
+person out, a request to start the app while it is stopped tells the owner who
+asked, and an identity-aware app of the same owner on the site can link a visit
+to a person.
 
 ## Persistence (use the storage client)
 

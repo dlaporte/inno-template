@@ -24,7 +24,7 @@ The contract's rule for an anonymous app, R10: No accounts, no per-person views,
 
 **Cookies.** Every cookie the app sets, its per-visitor state among them, carries the `__Host-` prefix (so `Secure`, `Path=/` and no `Domain`) and is `HttpOnly` unless the app's own script must read it: every app shares one site, and a page on another app's host can shadow any other cookie. Accept a state change only from the app's own pages (APP-SECURITY §12).
 
-**What the platform still knows.** While the app is members-only or internal, the platform still knows who signed in to reach it (its admins, its audit log and its logs do), though the owner's panel shows sign-in counts, not people; once the app is public, nobody signs in to reach it. **Where the promise ends:** the platform does not tell the app who the caller is, and it does not make visits unlinkable against an owner who tries. The app still sees each caller's address (`X-Forwarded-For`) and the timing of each request, small counts can single a person out, a request to start the app while it is stopped tells the owner who asked, and an identity-aware app of the same owner on the site can link a visit to a person.
+**What the platform still knows.** While the app is members-only or internal, the platform still knows who signed in to reach it (its admins, its audit log and its logs do), though the owner's panel shows sign-in counts, not people; once the app is public, nobody signs in to reach it. **Where the promise ends:** the platform does not tell the app who the caller is, and it does not make visits unlinkable against an owner who tries. The app still sees each caller's address (`X-Forwarded-For` and `CF-Connecting-IP`) and the timing of each request, small counts can single a person out, a request to start the app while it is stopped tells the owner who asked, and an identity-aware app of the same owner on the site can link a visit to a person.
 
 An anonymous app has no Connections (per-user credentials for an external backend, contract §2.2): there is no user to hold one, and `set_app_connection` refuses an anonymous app with `app_anonymous`.
 
@@ -45,7 +45,7 @@ A source app linked to this one (`link_app_data`, contract §2.1) arrives as two
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
 - `GET /healthz` must return 200 without touching storage; the platform probes it after deploy and on schedule.
-- Never interpolate user data into hand-built HTML, even escaped; the SAST gate blocks it. Return dynamic data as JSON (like the scaffold's /me) or render through an auto-escaping template library; keep hand-written HTML fully static.
+- Never interpolate user data into hand-built HTML, even escaped; the SAST gate blocks it. Return dynamic data as JSON or render through an auto-escaping template library; keep hand-written HTML fully static.
 - Do not add: anything under a root `src/` (the platform owns that directory), a root `package.json`, `package-lock.json` or `tsconfig.json`, any `wrangler.*` config or `.wrangler/` directory, root `.env` files, root package manager config (`.yarnrc`, `.yarnrc.yml`, `.pnpmfile.cjs`, `pnpm-workspace.yaml`, `bunfig.toml`), or a `.npmrc` anywhere, `app/.npmrc` included. The platform injects all deploy configuration, and CI rejects shadow copies.
 
 ## What CI enforces
