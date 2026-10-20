@@ -36,6 +36,8 @@ The front door also sets `X-Forwarded-Host` (the hostname the request arrived on
 
 Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
 
+Every cookie the app sets carries the `__Host-` prefix (so `Secure`, `Path=/` and no `Domain`) and is `HttpOnly` unless the app's own script must read it (contract R10), and the front door refuses a frame, script, image, `fetch` or form post from another app's page (contract R3), so two of your apps share data through a data link (§2.1), never from the browser.
+
 Read the caller in your routes with the `current_user(request)` helper from `storage.py` (`currentUser(headers)` in `lib/storage.js`). It returns `None` (`null` in JavaScript) when the request carries no identity, otherwise the email, the groups, `member`, true when the caller holds the app's members group, and `subject`, `None` only when the request carries no `X-Forwarded-Subject`. Key per-person rows on `subject`, the person's identity provider ID; the address can pass to someone else. Handle no user first, and a missing `subject` with it, before any per-person read or write: refuse, or answer with what is meant for anyone (contract §3). Never default the absence back into a value (`or ""`, `?.email`, `?? ""`, `"unknown"`): a placeholder bound into `WHERE owner = ?` is one key that every caller with no identity shares.
 
 ```python

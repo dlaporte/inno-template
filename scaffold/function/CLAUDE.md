@@ -25,6 +25,8 @@ The front door decides who reaches the app and tells you who the caller is, in t
 
 Each request's caller is one of three: a member (`X-Forwarded-Groups` includes the app's `-users` group), signed in but not a member (an identity without that group), or anonymous (empty identity headers). The platform decides who reaches the app; the app decides, per request, what each caller may see and do, and never assumes a caller is a member. Per-person data and roles exist only for an identified caller; a caller with no identity gets only what is meant for anyone.
 
+Every cookie the app sets carries the `__Host-` prefix (so `Secure`, `Path=/` and no `Domain`) and is `HttpOnly` unless the app's own script must read it (contract R10), and the front door refuses a frame, script, image, `fetch` or form post from another app's page (contract R3), so two of your apps share data through a data link (§2.1), never from the browser.
+
 Read the caller with the helper in `app/identity.ts`:
 
 ```ts

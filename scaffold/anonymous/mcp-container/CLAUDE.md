@@ -57,15 +57,14 @@ another app's host can shadow any other cookie. Accept a state change only from 
 app's own pages (APP-SECURITY §12).
 
 **What the platform still knows.** While the app is members-only or internal, the
-platform still knows who signed in to reach it (its admins, its audit log and its
-logs do), though the owner's panel shows sign-in counts, not people; once the app is
-public, nobody signs in to reach it. **Where the promise ends:** the platform does
-not tell the app who the caller is, and it does not make visits unlinkable against
-an owner who tries. The app still sees each caller's address (`X-Forwarded-For`
-and `CF-Connecting-IP`) and the timing of each request, small counts can single a
-person out, a request to start the app while it is stopped tells the owner who
-asked, and an identity-aware app of the same owner on the site can link a visit
-to a person.
+platform still knows who signed in to reach it (its admins and its audit log do),
+though the owner's panel shows sign-in counts, not people; once the app is public,
+nobody signs in to reach it. **Where the promise ends:** the platform does not tell
+the app who the caller is, and it does not make visits unlinkable against an owner
+who tries. The app still sees each caller's address (`X-Forwarded-For` and
+`CF-Connecting-IP`) and the timing of each request, small counts can single a
+person out, and an identity-aware app of the same owner on the site can link a
+visit to a person.
 
 ## Persistence (use the storage client)
 
@@ -126,7 +125,8 @@ there is no user to hold one, so `set_app_connection` refuses an anonymous app w
   on `FastMCP(...)`: by default FastMCP accepts only localhost `Host` headers, and
   every proxied request fails with `421 Invalid Host header`.
 - Do not implement or route `/.well-known/oauth-protected-resource` (or its
-  path-inserted `.../mcp` variant): the front door serves that RFC 9728 metadata.
+  path-inserted `.../mcp` variant): the front door answers both (with that RFC
+  9728 metadata, or a `404` once the app is public).
 - Register tools with `@mcp.tool()`; the signature is the input schema (see `echo`).
 - Do not add: anything under a root `src/`, a root `package.json`,
   `package-lock.json` or `tsconfig.json`, any `wrangler.*` config or `.wrangler/`
