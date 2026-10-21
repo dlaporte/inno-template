@@ -52,14 +52,14 @@ An anonymous app is never told who the caller is, so every request it gets looks
 like the third.
 
 There is no `/_storage/*` proxy without the platform's host, so storage calls fail
-locally. To exercise the real front door and storage, push to `main`: CI runs the full
+locally. To exercise the real front door and storage, push to your default branch: CI runs the full
 safety-gate suite as your preflight, without deploying.
 
 ## Deploying
 
 Deploys are RELEASE-driven:
 
-1. **Push to main**: safety gates run (nothing deploys). Delete
+1. **Push to the default branch**: safety gates run (nothing deploys). Delete
    `app/.needs-build` once real code is in place; deploys are skipped while it
    exists.
 2. **Tag a release**: `git tag v1.0.0 && git push origin v1.0.0` deploys the image

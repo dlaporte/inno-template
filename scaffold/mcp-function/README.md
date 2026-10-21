@@ -16,21 +16,21 @@ and the `## Function contract` section of `CLAUDE.md`.
 This scaffold ships `app/package.json` with the MCP SDK and zod, plus
 `app/package-lock.json`. Add more npm packages with `npm install <pkg>` inside
 `app/` and commit both files (never a root package.json; the platform injects the
-root build inputs at deploy time). Every push to main fails if the committed
+root build inputs at deploy time). Every push to the default branch fails if the committed
 lockfile is missing or out of step, not only a release.
 
 ## Running locally
 
 There is no local dev flow for mcp-function-type apps yet: the wrangler config is
 injected at deploy time and the front door runs on the platform, so
-`npx wrangler dev` has nothing to run against in this repo. Push to `main`
+`npx wrangler dev` has nothing to run against in this repo. Push to your default branch
 instead: CI runs the full safety-gate suite as your preflight, without deploying.
 
 ## Deploying
 
 Deploys are RELEASE-driven:
 
-1. **Push to main**: safety gates run (nothing deploys). Delete
+1. **Push to the default branch**: safety gates run (nothing deploys). Delete
    `app/.needs-build` once real code is in place; deploys are skipped while it
    exists.
 2. **Tag a release**: `git tag v1.0.0 && git push origin v1.0.0` deploys your

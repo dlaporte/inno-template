@@ -21,7 +21,7 @@ scaffold itself ships dependency-free: `index.ts` references
 
 There is no local dev flow for function-type apps yet: the wrangler config is
 injected at deploy time and the front door runs on the platform, so
-`npx wrangler dev` has nothing to run against in this repo. Push to `main`
+`npx wrangler dev` has nothing to run against in this repo. Push to your default branch
 instead: CI runs the full safety-gate suite as your preflight, without
 deploying anything.
 
@@ -29,7 +29,7 @@ deploying anything.
 
 Deploys are RELEASE-driven:
 
-1. **Push to main**: safety gates run (nothing deploys). Delete
+1. **Push to the default branch**: safety gates run (nothing deploys). Delete
    `app/.needs-build` once real code is in place; deploys are skipped while it
    exists.
 2. **Tag a release**: `git tag v1.0.0 && git push origin v1.0.0` deploys your
