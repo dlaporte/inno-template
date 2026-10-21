@@ -11,7 +11,7 @@ identity headers, storage bindings, and the `## Function contract` section of `C
 Need npm packages? Add them to `app/package.json` (never a root package.json;
 the platform injects the root build inputs at deploy time), run `npm install`
 inside `app/`, and commit `app/package-lock.json` alongside it. Every push to
-main fails without that committed lockfile, not only a release. The
+the default branch fails without that committed lockfile, not only a release. The
 scaffold itself ships dependency-free: `index.ts` references
 `D1Database`/`R2Bucket` as ambient types; for editor/typecheck support, add
 `@cloudflare/workers-types` as a devDependency when you create

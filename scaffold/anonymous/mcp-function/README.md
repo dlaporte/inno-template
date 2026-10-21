@@ -1,0 +1,39 @@
+# {app} (mcp-function type, anonymous)
+
+An mcp-function-type app on the Innovation Platform: your code in `app/index.ts` runs as
+its own Cloudflare Worker, a Model Context Protocol (MCP) server, behind the
+platform's front door, which checks each caller's OAuth token (it asks for none once the app is public)
+and never tells the app who the caller is. MCP clients (Claude Code, claude.ai) reach it
+at `https://<app host>/mcp` (the exact URL is shown by
+`register_app`, the first-deploy notification, and the panel; `get_platform_status`'s App host pattern gives the host).
+
+## Developing
+
+Everything you own is under `app/`. Start in `app/index.ts`, a stateless
+Streamable-HTTP MCP server with one example tool (`echo`), and read
+`CLAUDE.md` for the platform's constraints: the identity headers this app never reads, storage bindings,
+and the `## Function contract` section of `CLAUDE.md`.
+
+This scaffold ships `app/package.json` with the MCP SDK and zod, plus
+`app/package-lock.json`. Add more npm packages with `npm install <pkg>` inside
+`app/` and commit both files (never a root package.json; the platform injects the
+root build inputs at deploy time). Every push to the default branch fails if the committed
+lockfile is missing or out of step, not only a release.
+
+## Running locally
+
+There is no local dev flow for mcp-function-type apps yet: the wrangler config is
+injected at deploy time and the front door runs on the platform, so
+`npx wrangler dev` has nothing to run against in this repo. Push to your default branch
+instead: CI runs the full safety-gate suite as your preflight, without deploying.
+
+## Deploying
+
+Deploys are RELEASE-driven:
+
+1. **Push to the default branch**: safety gates run (nothing deploys). Delete
+   `app/.needs-build` once real code is in place; deploys are skipped while it
+   exists.
+2. **Tag a release**: `git tag v1.0.0 && git push origin v1.0.0` deploys your
+   Worker, then attaches your app's hostname to the platform's front door. Add the resulting
+   `/mcp` URL as an MCP server in your client.

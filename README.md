@@ -133,24 +133,33 @@ with a Worker; `scaffold/mcp-container/` keeps the container shape (the root
 the platform generates an app repo it prunes to exactly one, driven by the
 app's type: an overlay's files replace their root namesakes, and its
 `.scaffold-remove` lists what that variant deletes outright. An app registered
-anonymous also takes `scaffold/anonymous/<type>/CLAUDE.md` as its `CLAUDE.md`,
-laid over its type's scaffold in the same commit: one anonymous guide per type,
-each its type's guide rewritten where an app that is never told who the caller
-is differs. Generated repos never contain `scaffold/`: CI rejects it as a
+anonymous also takes the files under `scaffold/anonymous/<type>/`, laid over its
+type's scaffold in the same commit: its `CLAUDE.md` (one anonymous guide per
+type, each its type's guide rewritten where an app that is never told who the
+caller is differs), reference entry files that read no identity, a `README.md`
+for every type but `function` (whose README holds for both), and, for the two
+function types, a `.scaffold-remove` that deletes the identity helper. Generated repos never contain `scaffold/`: CI rejects it as a
 leftover once `app/.needs-build` is deleted, and tolerates it only while that
 marker is still present.
 
 ## Maintainer notes
 
-Fourteen files here are byte-mirrored into `inno-platform`'s CI fixtures
+Twenty-one files here are byte-mirrored into `inno-platform`'s CI fixtures
 (`ci/fixtures/template/`): `CLAUDE.md`, `Dockerfile`, `lib/storage.js`,
 `lib/storage.d.ts`, `app/storage.py`, the three overlay guides `scaffold/function/CLAUDE.md`,
 `scaffold/mcp-function/CLAUDE.md` and `scaffold/mcp-container/CLAUDE.md`,
 the function overlays' identity helper, `scaffold/function/app/identity.ts` and
-`scaffold/mcp-function/app/identity.ts`, and the four anonymous guides,
+`scaffold/mcp-function/app/identity.ts`, the four anonymous guides,
 `scaffold/anonymous/container/CLAUDE.md`, `scaffold/anonymous/function/CLAUDE.md`,
 `scaffold/anonymous/mcp-function/CLAUDE.md` and
-`scaffold/anonymous/mcp-container/CLAUDE.md`. The
+`scaffold/anonymous/mcp-container/CLAUDE.md`, and the anonymous layers'
+reference code, `scaffold/anonymous/container/app/main.py`,
+`scaffold/anonymous/container/app/templates/index.html`,
+`scaffold/anonymous/function/app/index.ts`,
+`scaffold/anonymous/function/.scaffold-remove`,
+`scaffold/anonymous/mcp-function/app/index.ts`,
+`scaffold/anonymous/mcp-function/.scaffold-remove` and
+`scaffold/anonymous/mcp-container/app/main.py`. No README is mirrored. The
 platform's `template-drift` CI job diffs the fixtures against this repo's
 `main` in **both directions** on platform pushes, platform pull requests and a
 nightly schedule; a push to this repo does not run it. Changing one side alone

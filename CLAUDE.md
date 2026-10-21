@@ -60,7 +60,7 @@ choose FastAPI: older releases pin a CVE-bearing Starlette line that fails
 the platform's dependency/image gates; check your lockfile resolves a clean
 version before committing to it.)
 
-**Sign out** is one link, no session code. Whenever the app shows who is signed in, link to `/_auth/signout` on the app's own host. Signing out ends the person's panel and every app session they hold, in every browser. Include it in your layout (footer is fine):
+**Sign out** is one link, no session code. Whenever the app shows who is signed in, link to `/_auth/signout` on the app's own host. Signing out ends the person's panel and every app session they hold, in every browser, and their identity provider session in the browser they sign out in. Include it in your layout (footer is fine):
 
 ```html
 <a href="/_auth/signout">Sign out</a>
@@ -165,8 +165,7 @@ MCP tool (or the panel's Connections tab). Availability today (contract
 §2.2): the seam is live for **mcp-container** apps; a `container` (sso) app
 reaches the seam too but carries no caller assertion, so the platform
 answers 400 `bad_request` (503 `connections_disabled` on a platform without
-its introspection key or its assertion key, which issues no assertion to any
-app), and function-shaped apps have no `storage.internal` at all. The helper ships in
+its assertion key, which issues no assertion to any app), and function-shaped apps have no `storage.internal` at all. The helper ships in
 both clients now so container apps are ready as availability widens. A
 failed seam call raises `ConnectionsError` carrying the HTTP `status` and the
 answer's `error` code as `code` (in Python it is also an
