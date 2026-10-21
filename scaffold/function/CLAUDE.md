@@ -16,7 +16,7 @@ Your code and its dependencies live entirely under `app/`. If you need npm packa
 
 **Do not build authentication, sessions, or password storage.**
 
-The front door decides who reaches the app and tells you who the caller is, in the identity headers. It sets these spoof-proof headers:
+The front door decides who reaches the app and tells you who the caller is, in the identity headers. It sets these spoof-proof headers (contract R3 names the full set, `X-Forwarded-Email` among them):
 
 - `X-Forwarded-User`: the caller's email (e.g. `alice@example.com`), empty when the caller has no identity
 - `X-Forwarded-Subject`: the caller's identity provider ID, which stays with the person when an address passes to someone else; empty when the caller has no identity
@@ -49,6 +49,10 @@ Function-type apps use their provisioned storage directly as bindings, not the c
 
 Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-independent.
 
+A source app linked to this one (`link_app_data`, contract §2.1) arrives as two more bindings at this app's next deploy: `env.LINKED_<SOURCE>` (its D1) and `env.LINK_FILES_<SOURCE>` (its R2 bucket), `<SOURCE>` being its name upper-cased with each `-` as `_`. The grant is read-write, over the source's database and every one of its files.
+
+**Files someone uploaded.** Serve one back only as a download, with three headers: `Content-Disposition: attachment; filename="<name>"`, every character of the name outside `[A-Za-z0-9._-]` replaced by `_`, then `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox`. The rule holds from any host (APP-SECURITY §3), this one included: for a visitor's submission, for a file an editor app put here (a visitor's upload republished by an editor among them), and for every file read from `env.LINK_FILES_<SOURCE>`. Every app shares one site, so an uploaded HTML or SVG file shown inline could run script beside every other app.
+
 ## Function contract
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
@@ -58,4 +62,4 @@ Create tables at first use (D1 is empty on provision). Keep `/healthz` storage-i
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the whole repository except the platform-owned root `src/` and semgrep's default-ignored directories (`test/`, `tests/`, `build/`, `dist/`, `vendor/`, `node_modules/`, at any depth), so `.github/workflows/deploy.yml` is scanned too), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Function-type apps skip the Docker build/Trivy/healthz-smoke image gates (there is no image). Whenever `app/package.json` exists, every push also needs a committed `app/package-lock.json` that matches it: the `app-build` job installs from it and fails without it.
+Every push to the default branch runs the platform's safety gates (your preflight); tagging a `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the whole repository except the platform-owned root `src/` and semgrep's default-ignored directories (`test/`, `tests/`, `build/`, `dist/`, `vendor/`, `node_modules/`, at any depth), so `.github/workflows/deploy.yml` is scanned too), dependency audits (`app/package.json` if present), config-integrity (this file's headers, no shadow configs), and release-age cooldown. Function-type apps skip the Docker build/Trivy/healthz-smoke image gates (there is no image). Whenever `app/package.json` exists, every push also needs a committed `app/package-lock.json` that matches it: the `app-build` job installs from it and fails without it.

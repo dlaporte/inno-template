@@ -36,9 +36,9 @@ tells the app who the caller is, at any audience: the four identity headers
 `X-Forwarded-Subject`) arrive present and empty on every request, the
 `Authorization` header never reaches your container, and no `X-Caller-Assertion`
 arrives. Write no code that reads them, and put no sign-out link in the app (an MCP
-server has no browser session anyway). The reference `app/main.py` came from the
-identity-aware scaffold, and its `current_user` call answers no user on every
-request here: remove it, and the `whoami` tool that reports it, as you build. Never
+server has no browser session anyway). The reference `app/main.py` reads none
+of them and has no `whoami` tool; `app/storage.py` still carries the shared client's
+`current_user` helper, which an anonymous app never calls. Never
 trust what the client claims about itself. A tool that refuses (bad input, a limit
 reached) refuses inside MCP, never with an HTTP status (contract §1.3, a MUST):
 raise from the tool, and FastMCP answers with a tool result marked as an error, as
@@ -83,7 +83,9 @@ if not rows:
 
 Create tables at first use (D1 is empty on provision). `Storage().list_files()`
 returns the list of keys with a `truncated` attribute, true when the platform
-stopped listing at its cap. A source app linked to this one (`link_app_data`,
+stopped listing at its cap.
+
+A source app linked to this one (`link_app_data`,
 contract §2.1) is reached with `query_linked` and `execute_linked` for its
 database, and `put_linked_file`, `get_linked_file`, `list_linked_files` and
 `delete_linked_file` for its files: the grant is read-write, over the source's
@@ -114,7 +116,9 @@ there is no user to hold one, so `set_app_connection` refuses an anonymous app w
   on the next request, so the first call after idle is slower.
 - `GET /healthz` must return 200 without touching storage (R2): CI's smoke gate
   wants it within 90s of `docker run`, and the platform probes it after each green
-  deploy and then every `health.probe_interval_hours` hours (24 by default).
+  deploy and then every `health.probe_interval_hours` hours (24 by default). The
+  probe allows one 45 second attempt and one retry 5 seconds later, so size the
+  boot for the first attempt.
 - `POST /mcp` is your MCP endpoint. **Stateless only** (`stateless_http=True`).
   This is a platform requirement, not a preference: there is no session store, so
   **server-initiated** MCP features do not work: no notifications, sampling,
@@ -135,7 +139,7 @@ there is no user to hold one, so `set_app_connection` refuses an anonymous app w
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a
+Every push to the default branch runs the platform's safety gates (your preflight); tagging a
 `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the
 whole repository except the platform-owned root `src/` and semgrep's
 default-ignored directories: `test/`, `tests/`, `build/`, `dist/`, `vendor/`,

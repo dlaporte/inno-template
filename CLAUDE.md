@@ -26,7 +26,7 @@ Read `app/main.py` to see the reference implementation. The container is built f
 
 **Do not build authentication, sessions, or password storage.** An anonymous app keeps per-visitor state (a cart, a form step) in a cookie of its own under contract R10 (`get_app_contract`), never as an identity; an app registered anonymous gets its own guide in place of this file, written by the platform's scaffold commit at registration.
 
-The front door decides who reaches the app and tells you who the caller is, in the identity headers:
+The front door decides who reaches the app and tells you who the caller is, in the identity headers (contract R3 names the full set, `X-Forwarded-Email` among them):
 
 - `X-Forwarded-User`: the caller's email (e.g., `alice@example.com`), empty when the caller has no identity
 - `X-Forwarded-Subject`: the caller's identity provider ID, which stays with the person when an address passes to someone else; empty when the caller has no identity
@@ -55,7 +55,7 @@ async def me(request: Request) -> JSONResponse:
 ```
 
 (The reference app uses Starlette. Any framework works the same way: read
-the two headers, never build your own login/sessions. One known trap if you
+the identity headers (contract R3 names them all), never build your own login/sessions. One known trap if you
 choose FastAPI: older releases pin a CVE-bearing Starlette line that fails
 the platform's dependency/image gates; check your lockfile resolves a clean
 version before committing to it.)
@@ -179,31 +179,15 @@ A failed seam call's error message is `connections_error:<status>`, so read the 
 The container must adhere to these requirements:
 
 1. **Listen on port 8080**: the platform's host forwards all traffic to this port.
-2. **Serve `/healthz` endpoint.** Return HTTP 200 if healthy, cheap and storage-independent. Two platform checks bind to it (contract R2): CI's smoke gate (the built image must answer within 90s of `docker run`) and the runtime health probe, fired after each green deploy and then every `health.probe_interval_hours` hours (24 by default): failures notify the owner and surface in the panel's Health column.
+2. **Serve `/healthz` endpoint.** Return HTTP 200 if healthy, cheap and storage-independent. Two platform checks bind to it (contract R2): CI's smoke gate (the built image must answer within 90s of `docker run`) and the runtime health probe, which allows one 45 second attempt and one retry 5 seconds later, so size the boot for the first attempt (a boot of 50 to 90 seconds passes CI and then fails every probe). The probe fires after each green deploy and then every `health.probe_interval_hours` hours (24 by default): failures notify the owner and surface in the panel's Health column.
 3. **Run as non-root**: the Dockerfile must create a non-root user and switch to it before running your app. The reference Dockerfile uses `useradd -m appuser && USER appuser`.
 4. **Graceful shutdown**: the container will receive SIGTERM; handle it cleanly.
 
 Violating these contracts will cause deployment failures and health check timeouts.
 
-### If your app is the `mcp-container` type
-
-The container contract above applies in full, plus the MCP deltas (contract
-§1.3): serve the **Streamable HTTP** MCP transport at `POST /mcp`,
-**stateless only**: no session correlation across requests, so
-server-initiated MCP features (notifications, sampling, elicitation,
-subscriptions) are unavailable. Identity still arrives only as the
-`X-Forwarded-*` headers: the front door is the OAuth boundary and the
-`Authorization` header never reaches you, and the sign-out link does not
-apply (there is no browser session). Python gotcha: FastMCP silently enables
-localhost-only DNS-rebinding protection when its `host` *setting* is left at
-the default, rejecting every proxied `/mcp` request with `421 Invalid Host
-header`: pass
-`transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False)`
-to the `FastMCP(...)` constructor.
-
 ## What CI enforces
 
-Every push to main and every `v*` release tag runs the platform's gate suite, each with its own job. Items 1 to 8 are gates that fail the build; item 9's reports are advisory unless policy makes one a gate:
+Every push to the default branch and every `v*` release tag runs the platform's gate suite, each with its own job. Items 1 to 8 are gates that fail the build; item 9's reports are advisory unless policy makes one a gate:
 
 1. **No committed secrets** (`gitleaks`): credentials or API keys anywhere in the working tree fail the build. App secrets are provisioned as environment variables through the platform's Variables facility (the app page's Variables tab, or set_app_variable), never committed.
 2. **No vulnerable dependencies** (`deps` + `trivy`): pip-audit scans `app/requirements.txt` and npm audit scans `app/package.json`; the Trivy image scan covers everything the container actually ships (OS packages and language packages, any stack), HIGH/CRITICAL severity with a fix available (an unfixed CVE never fails the gate).

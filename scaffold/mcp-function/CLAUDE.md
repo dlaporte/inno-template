@@ -36,7 +36,8 @@ package.json is rejected by CI; the platform injects the root build inputs.
 
 The front door decides who reaches the app and tells you who the caller is, in the
 identity headers. It checks the caller's OAuth bearer token and sets these
-spoof-proof headers on every forwarded request:
+spoof-proof headers on every forwarded request (contract R3 names the full set,
+`X-Forwarded-Email` among them):
 
 - `X-Forwarded-User`: the caller's email (e.g. `alice@example.com`), empty when
   the caller has no identity
@@ -97,6 +98,22 @@ Connections (per-user backend credentials, contract §2.2) are not available to
 this type: an mcp-function app has no `storage.internal`, so it cannot reach the
 Connections seam. An MCP server that needs them must be the mcp-container type.
 
+A source app linked to this one (`link_app_data`, contract §2.1) arrives as two more
+bindings at this app's next deploy: `env.LINKED_<SOURCE>` (its D1) and
+`env.LINK_FILES_<SOURCE>` (its R2 bucket), `<SOURCE>` being its name upper-cased
+with each `-` as `_`. The grant is read-write, over the source's database and every
+one of its files.
+
+**Files someone uploaded.** If the Worker hands a stored file to a browser, it
+serves it only as a download, with three headers:
+`Content-Disposition: attachment; filename="<name>"`, every character of the name
+outside `[A-Za-z0-9._-]` replaced by `_`, then `X-Content-Type-Options: nosniff`
+and `Content-Security-Policy: sandbox`. The rule holds from any host (APP-SECURITY §3),
+this one included: for a visitor's submission, for a file an editor app put here
+(a visitor's upload republished by an editor among them), and for every file read
+from `env.LINK_FILES_<SOURCE>`. Every app shares one site, so an uploaded HTML or
+SVG file shown inline could run script beside every other app.
+
 ## Function contract
 
 - `app/index.ts` exports a standard Worker module: `export default { fetch(request, env, ctx) }`.
@@ -125,7 +142,7 @@ Connections seam. An MCP server that needs them must be the mcp-container type.
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a
+Every push to the default branch runs the platform's safety gates (your preflight); tagging a
 `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the
 whole repository except the platform-owned root `src/` and semgrep's
 default-ignored directories: `test/`, `tests/`, `build/`, `dist/`, `vendor/`,

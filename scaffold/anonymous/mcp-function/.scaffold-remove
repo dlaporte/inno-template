@@ -1,0 +1,4 @@
+# Files the identity-aware mcp-function scaffold lays that an anonymous app never uses.
+# One path per line; entries ending "/" delete the whole directory.
+# (Applied after this layer's files are laid, in the same scaffold commit.)
+app/identity.ts

@@ -190,14 +190,7 @@ class Connections:
             async with httpx.AsyncClient() as c:
                 r = await c.post(f"{self.base}/_connections/{name}", headers=headers)
         if not r.is_success:
-            code = None
-            try:
-                body = r.json()
-                if isinstance(body, dict) and isinstance(body.get("error"), str):
-                    code = body["error"]
-            except ValueError:
-                pass
-            raise ConnectionsError(r, code)
+            raise ConnectionsError(r, _error_code(r))
         out = r.json()
         if out.get("status") == "not_connected":
             raise (ConnectionLocked if out.get("locked") else NotConnected)(out.get("connect_url"))

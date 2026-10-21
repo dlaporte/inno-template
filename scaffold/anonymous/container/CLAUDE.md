@@ -26,7 +26,7 @@ Read `app/main.py` to see the reference implementation. The container is built f
 
 **Do not build authentication, sessions, or password storage.**
 
-This app is anonymous, which was fixed when it was registered: an app that needs to know who its callers are is a different, identity-aware app. The front door decides who reaches the app, by its audience (members-only, internal or public), and never tells the app who the caller is, at any audience: the four identity headers (`X-Forwarded-User`, `X-Forwarded-Email`, `X-Forwarded-Groups` and `X-Forwarded-Subject`) arrive present and empty on every request, and no `X-Caller-Assertion` arrives. Write no code that reads them, and put no sign-out link in the app: it never shows who is signed in, so contract R4 asks for none. The reference code in `app/` came from the identity-aware scaffold, and its `current_user` call answers no user on every request here: remove it, and the page's sign-out link, as you build.
+This app is anonymous, which was fixed when it was registered: an app that needs to know who its callers are is a different, identity-aware app. The front door decides who reaches the app, by its audience (members-only, internal or public), and never tells the app who the caller is, at any audience: the four identity headers (`X-Forwarded-User`, `X-Forwarded-Email`, `X-Forwarded-Groups` and `X-Forwarded-Subject`) arrive present and empty on every request, and no `X-Caller-Assertion` arrives. Write no code that reads them, and put no sign-out link in the app: it never shows who is signed in, so contract R4 asks for none. The reference code in `app/` reads none of them and links no sign-out; `app/storage.py` still carries the shared client's `current_user` helper, which an anonymous app never calls.
 
 The front door also sets `X-Forwarded-Host` (the hostname the request arrived on), `X-Forwarded-Proto` (always `https`) and `X-Forwarded-For` (the client address from Cloudflare's edge, absent when unknown), deletes `Forwarded`, and keeps the platform's own cookies and its `/_auth/` paths from the app. Every other header, including `X-Real-IP`, `True-Client-IP` and `X-Forwarded-Port`, is whatever the client sent: never use one for an access decision.
 
@@ -112,33 +112,15 @@ app variable (`set_app_variable`).
 The container must adhere to these requirements:
 
 1. **Listen on port 8080**: the platform's host forwards all traffic to this port.
-2. **Serve `/healthz` endpoint.** Return HTTP 200 if healthy, cheap and storage-independent. Two platform checks bind to it (contract R2): CI's smoke gate (the built image must answer within 90s of `docker run`) and the runtime health probe, fired after each green deploy and then every `health.probe_interval_hours` hours (24 by default): failures notify the owner and surface in the panel's Health column.
+2. **Serve `/healthz` endpoint.** Return HTTP 200 if healthy, cheap and storage-independent. Two platform checks bind to it (contract R2): CI's smoke gate (the built image must answer within 90s of `docker run`) and the runtime health probe, which allows one 45 second attempt and one retry 5 seconds later, so size the boot for the first attempt (a boot of 50 to 90 seconds passes CI and then fails every probe). The probe fires after each green deploy and then every `health.probe_interval_hours` hours (24 by default): failures notify the owner and surface in the panel's Health column.
 3. **Run as non-root**: the Dockerfile must create a non-root user and switch to it before running your app. The reference Dockerfile uses `useradd -m appuser && USER appuser`.
 4. **Graceful shutdown**: the container will receive SIGTERM; handle it cleanly.
 
 Violating these contracts will cause deployment failures and health check timeouts.
 
-### If your app is the `mcp-container` type
-
-The container contract above applies in full, plus the MCP deltas (contract
-§1.3): serve the **Streamable HTTP** MCP transport at `POST /mcp`,
-**stateless only**: no session correlation across requests, so
-server-initiated MCP features (notifications, sampling, elicitation,
-subscriptions) are unavailable. The app is never told who the caller is
-(this guide's Identity section): the four identity headers arrive present
-and empty, the front door is the OAuth boundary (it asks for no token once
-the app is public), the `Authorization` header never reaches you, and the
-sign-out link does not apply (there is no browser session).
-Python gotcha: FastMCP silently enables
-localhost-only DNS-rebinding protection when its `host` *setting* is left at
-the default, rejecting every proxied `/mcp` request with `421 Invalid Host
-header`: pass
-`transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False)`
-to the `FastMCP(...)` constructor.
-
 ## What CI enforces
 
-Every push to main and every `v*` release tag runs the platform's gate suite, each with its own job. Items 1 to 8 are gates that fail the build; item 9's reports are advisory unless policy makes one a gate:
+Every push to the default branch and every `v*` release tag runs the platform's gate suite, each with its own job. Items 1 to 8 are gates that fail the build; item 9's reports are advisory unless policy makes one a gate:
 
 1. **No committed secrets** (`gitleaks`): credentials or API keys anywhere in the working tree fail the build. App secrets are provisioned as environment variables through the platform's Variables facility (the app page's Variables tab, or set_app_variable), never committed.
 2. **No vulnerable dependencies** (`deps` + `trivy`): pip-audit scans `app/requirements.txt` and npm audit scans `app/package.json`; the Trivy image scan covers everything the container actually ships (OS packages and language packages, any stack), HIGH/CRITICAL severity with a fix available (an unfixed CVE never fails the gate).

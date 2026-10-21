@@ -23,6 +23,7 @@ interface Env {
 }
 
 const PAGE = `<!doctype html>
+<html lang="en">
 <meta charset="utf-8">
 <title>Function scaffold</title>
 <h1>Function-type scaffold</h1>

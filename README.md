@@ -69,16 +69,16 @@ curl -H 'X-Forwarded-User;' -H 'X-Forwarded-Groups;' http://localhost:8080/
 
 `<members group>` is your app's one group (`get_platform_status` names it under App groups); a signed-in caller who is not a member arrives with `X-Forwarded-Groups` empty. An anonymous app is never told who the caller is, so every request it gets looks like the third.
 
-To exercise the real sign-in and storage, push to `main`: CI runs the full
+To exercise the real sign-in and storage, push to your default branch: CI runs the full
 gate suite as your safety preflight before any tag deploys. See `CLAUDE.md`
 for details on identity, storage, and the container contract.
 
 ## Deploying
 
-Deploys are RELEASE-driven: pushing to main runs the safety checks only;
+Deploys are RELEASE-driven: pushing to the default branch runs the safety checks only;
 tagging a `v*` release is what deploys.
 
-1. **Push to main**: CI (the platform's reusable workflow) runs the safety
+1. **Push to the default branch**: CI (the platform's reusable workflow) runs the safety
    gates (config-integrity, secrets, SAST, deps, dep-age, container). Nothing deploys:
    this is your safety preflight, and you can push work-in-progress freely.
 2. **Tag a release** (`git tag v1.0.0 && git push origin v1.0.0`, or just run
@@ -94,7 +94,8 @@ your container at `http://storage.internal` by the platform's host.
 (`/healthz` is enforced twice: CI's container gate
 smoke-tests it (the built image must answer 200 within 90s of `docker run`),
 and the platform probes it after each green deploy and then every
-`health.probe_interval_hours` hours, 24 by default.)
+`health.probe_interval_hours` hours, 24 by default, allowing one 45 second
+attempt and one retry 5 seconds later, so size the boot for the first attempt.)
 
 ## What's in This Template
 

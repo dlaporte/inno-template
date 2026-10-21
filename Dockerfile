@@ -6,7 +6,9 @@
 #   - non-root USER before CMD                  (CI-enforced, APP-CONTRACT R1
 #     from platform v0.14.4: a plain uid 1 to 2147483647, or a portable name
 #     on one clean /etc/passwd line with such a uid, as useradd writes it)
-#   - GET /healthz -> 200 within 90s            (CI smoke test + runtime probe)
+#   - GET /healthz -> 200 within 90s            (CI smoke gate)
+#   - GET /healthz -> 200 inside one 45s attempt (runtime probe, APP-CONTRACT R2:
+#     one attempt, then one retry 5s later; size the boot for the first)
 #   - image passes Trivy HIGH/CRITICAL          (CI-enforced; the scanned image
 #     is the one that deploys, pushed by digest)
 # The base tag floats deliberately: a template cannot carry a digest the

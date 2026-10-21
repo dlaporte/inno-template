@@ -30,7 +30,7 @@ contract works (`get_app_contract` serves it, with current base images).
 The front door decides who reaches the app and tells you who the caller is, in the
 identity headers. It checks the caller's OAuth bearer token (the `Authorization`
 header never reaches your container) and sets these spoof-proof headers on every
-forwarded request:
+forwarded request (contract R3 names the full set, `X-Forwarded-Email` among them):
 
 - `X-Forwarded-User`: the caller's email (e.g. `alice@example.com`), empty when
   the caller has no identity
@@ -99,6 +99,22 @@ carrying the HTTP `status` and the answer's `error` code as `code` (contract §2
 says which codes are yours to fix), and `Storage().list_files()` returns the list
 of keys with a `truncated` attribute, true when the platform stopped listing at its cap.
 
+A source app linked to this one (`link_app_data`,
+contract §2.1) is reached with `query_linked` and `execute_linked` for its
+database, and `put_linked_file`, `get_linked_file`, `list_linked_files` and
+`delete_linked_file` for its files: the grant is read-write, over the source's
+database and every one of its files.
+
+**Files someone uploaded.** If the server hands a stored file to a browser, it
+serves it only as a download, with the headers `file_download_headers(filename)`
+returns (`fileDownloadHeaders(filename)` in JS): `Content-Disposition: attachment`,
+`X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox`. The rule
+holds from any host (APP-SECURITY §3), this one included: for a visitor's
+submission, for a file an editor app put here (a visitor's upload republished by an
+editor among them), and for every file read from a linked source with
+`get_linked_file`. Every app shares one site, so an uploaded HTML or SVG file shown
+inline could run script beside every other app.
+
 ## Container contract
 
 - Listen on `0.0.0.0:8080` with `EXPOSE 8080`, and run as a non-root `USER`
@@ -110,7 +126,9 @@ of keys with a `truncated` attribute, true when the platform stopped listing at 
   on the next request, so the first call after idle is slower.
 - `GET /healthz` must return 200 without touching storage (R2): CI's smoke gate
   wants it within 90s of `docker run`, and the platform probes it after each green
-  deploy and then every `health.probe_interval_hours` hours (24 by default).
+  deploy and then every `health.probe_interval_hours` hours (24 by default). The
+  probe allows one 45 second attempt and one retry 5 seconds later, so size the
+  boot for the first attempt.
 - `POST /mcp` is your MCP endpoint. **Stateless only** (`stateless_http=True`).
   This is a platform requirement, not a preference: there is no session store, so
   **server-initiated** MCP features do not work: no notifications, sampling,
@@ -130,7 +148,7 @@ of keys with a `truncated` attribute, true when the platform stopped listing at 
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a
+Every push to the default branch runs the platform's safety gates (your preflight); tagging a
 `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the
 whole repository except the platform-owned root `src/` and semgrep's
 default-ignored directories: `test/`, `tests/`, `build/`, `dist/`, `vendor/`,

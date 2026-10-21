@@ -42,10 +42,10 @@ tells the app who the caller is, at any audience: the four identity headers
 (`X-Forwarded-User`, `X-Forwarded-Email`, `X-Forwarded-Groups` and
 `X-Forwarded-Subject`) arrive present and empty on every request, and no
 `X-Caller-Assertion` arrives. Write no code that reads them, and put no sign-out
-link in the app (an MCP server has no browser session anyway). The scaffold's
-`app/index.ts` came from the identity-aware scaffold, and its `currentUser` call
-(`app/identity.ts`) answers no user on every request here: remove it, and the
-`whoami` tool that reports it, as you build. Never trust anything the client claims
+link in the app (an MCP server has no browser session anyway). The reference
+`app/index.ts` reads none of them and has no `whoami` tool, and the scaffold commit
+removes the identity helper (`app/identity.ts`) the identity-aware MCP scaffold
+carries. Never trust anything the client claims
 about its own identity. A tool that refuses (bad input, a limit reached) refuses
 inside MCP, never with an HTTP status (contract §1.2, a MUST): return a tool result
 marked `isError: true` (or a JSON-RPC error).
@@ -132,7 +132,7 @@ anyway: it has no `storage.internal`.)
 
 ## What CI enforces
 
-Every push to main runs the platform's safety gates (your preflight); tagging a
+Every push to the default branch runs the platform's safety gates (your preflight); tagging a
 `v*` release deploys. Gates: gitleaks (secrets), semgrep OWASP (SAST, over the
 whole repository except the platform-owned root `src/` and semgrep's
 default-ignored directories: `test/`, `tests/`, `build/`, `dist/`, `vendor/`,
