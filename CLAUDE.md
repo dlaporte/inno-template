@@ -142,36 +142,14 @@ an app cannot conjure one.
 
 ### Connections (per-user credentials for an external backend)
 
-If your app fronts an external backend (ServiceNow, a SaaS API) on behalf of
-the signed-in user, never run your own OAuth flow or collect tokens in-app:
-the platform brokers a per-user credential (contract §2.2). The front door
-injects an `X-Caller-Assertion` header alongside `X-Forwarded-User`; the app
-echoes it, unmodified and never decoded, when fetching the credential:
-
-```python
-from storage import Connections, NotConnected
-
-conns = Connections()
-try:
-    cred = await conns.get("servicenow", request.headers.get("x-caller-assertion"))
-    # cred["access_token"] or cred["header"] ({"name": ..., "value": ...});
-    # cache in memory only, and only until cred["expires_at"]
-except NotConnected as e:
-    pass  # relay e.connect_url to the user verbatim; a one-time linking step
-```
-
-Connections are configured by the app's owner with the `set_app_connection`
-MCP tool (or the panel's Connections tab). Availability today (contract
-§2.2): the seam is live for **mcp-container** apps; a `container` (sso) app
-reaches the seam too but carries no caller assertion, so the platform
-answers 400 `bad_request` (503 `connections_disabled` on a platform without
-its assertion key, which issues no assertion to any app), and function-shaped apps have no `storage.internal` at all. The helper ships in
-both clients now so container apps are ready as availability widens. A
-failed seam call raises `ConnectionsError` carrying the HTTP `status` and the
-answer's `error` code as `code` (in Python it is also an
-`httpx.HTTPStatusError`): contract §2.2 says which codes are the app's to fix and which
-mean retry later or a platform admin.
-A failed seam call's error message is `connections_error:<status>`, so read the error's `status` and `code` fields.
+This app's type takes none. A Connection (contract §2.2) is a per-user
+credential the platform brokers for an external backend, and only an
+identity-aware `mcp-container` app can hold one: `set_app_connection` refuses
+this `container` app with `app_type_unsupported`, and the connect pages answer
+its users "Not available". If your app must reach a backend (ServiceNow, a
+SaaS API) as each signed-in user, build it as an identity-aware MCP server of
+the `mcp-container` type; never run your own OAuth flow or collect people's
+backend tokens in this app.
 
 ## Container contract
 
