@@ -169,7 +169,7 @@ repos together.
 `ci/fixtures/good-app/CLAUDE.md` byte-identical to the template fixture, so a
 `CLAUDE.md` change touches three files.
 
-Platform internals (the front door and host source, deploy broker, Cloudflare/Okta/
-GitHub-App setup, and the OPERATIONS runbook that documents how to rebuild
+Platform internals (the front door and host source, deploy broker, Cloudflare, identity provider and
+GitHub App setup, and the OPERATIONS runbook that documents how to rebuild
 the whole environment from scratch) live in the `inno-platform` repo. The
 public reusable CI workflow apps call is published by the platform (its CI workflow in `get_platform_status`).
